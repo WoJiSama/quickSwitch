@@ -6,7 +6,7 @@
 
 **Architecture:** Swift Package with two targets. `QuickSwitchCore` (a pure, fully unit-tested library: models, stores, services with protocol-injected system access) and `quickSwitch` (an AppKit executable that hosts SwiftUI views inside a borderless `NSPanel` and runs as an accessory app). A shell script bundles the executable into a distributable `.app`.
 
-**Tech Stack:** Swift 5.9+, SwiftUI + AppKit, `NSWorkspace`, `UserDefaults`, `SMAppService`, XCTest. No third-party dependencies. macOS 13+.
+**Tech Stack:** Swift 5.9+, SwiftUI + AppKit, `NSWorkspace`, `UserDefaults`, `SMAppService`, Swift Testing. No third-party dependencies. macOS 13+.
 
 ---
 
@@ -16,6 +16,7 @@
 2. **Accessory mode set at runtime** via `NSApp.setActivationPolicy(.accessory)` (so even `swift run` behaves as a no-Dock-icon widget). The bundled `.app` also sets `LSUIElement` in Info.plist.
 3. **Persist full `AppItem` JSON** (bundleID + displayName) rather than only bundleIDs, so the display name survives without re-reading the bundle. Icons are still fetched live by bundleID.
 4. **Settings live in a right-click context menu** on the bar, not a separate popover view — same intent, even lighter and more idiomatic.
+5. **Tests use Swift Testing** (`import Testing`, `@Test`, `#expect`), NOT XCTest. XCTest is not installed on this machine (no full Xcode), and Swift Testing is the project's mandated framework. The build/test toolchain is swiftly-managed Swift 6.3 (`~/.swiftly/bin`, already on PATH — NOT the broken Command Line Tools). Run commands still use `swift test` / `swift test --filter <SuiteName>`; the runner prints `Test run with N tests ... passed` (not XCTest's `Executed N tests` phrasing).
 
 ---
 
@@ -111,13 +112,11 @@ print("quickSwitch scaffold")
 Create `Tests/QuickSwitchCoreTests/SmokeTests.swift`:
 
 ```swift
-import XCTest
+import Testing
 @testable import QuickSwitchCore
 
-final class SmokeTests: XCTestCase {
-    func test_packageBuildsAndTestsRun() {
-        XCTAssertTrue(true)
-    }
+@Test func packageBuildsAndTestsRun() {
+    #expect(Bool(true))
 }
 ```
 
@@ -147,26 +146,27 @@ git commit -m "chore: scaffold SwiftPM package (core lib + executable + tests)"
 Create `Tests/QuickSwitchCoreTests/AppItemTests.swift`:
 
 ```swift
-import XCTest
+import Testing
+import Foundation
 @testable import QuickSwitchCore
 
-final class AppItemTests: XCTestCase {
-    func test_id_equalsBundleID() {
+struct AppItemTests {
+    @Test func idEqualsBundleID() {
         let item = AppItem(bundleID: "com.google.Chrome", displayName: "Google Chrome")
-        XCTAssertEqual(item.id, "com.google.Chrome")
+        #expect(item.id == "com.google.Chrome")
     }
 
-    func test_codableRoundTrip_preservesValues() throws {
+    @Test func codableRoundTripPreservesValues() throws {
         let item = AppItem(bundleID: "com.apple.Safari", displayName: "Safari")
         let data = try JSONEncoder().encode(item)
         let decoded = try JSONDecoder().decode(AppItem.self, from: data)
-        XCTAssertEqual(decoded, item)
+        #expect(decoded == item)
     }
 
-    func test_equality_isByValue() {
+    @Test func equalityIsByValue() {
         let a = AppItem(bundleID: "x", displayName: "X")
         let b = AppItem(bundleID: "x", displayName: "X")
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 }
 ```
@@ -224,10 +224,10 @@ git commit -m "feat: add immutable AppItem model"
 Create `Tests/QuickSwitchCoreTests/AppSwitcherTests.swift`:
 
 ```swift
-import XCTest
+import Testing
 @testable import QuickSwitchCore
 
-final class AppSwitcherTests: XCTestCase {
+struct AppSwitcherTests {
     final class MockWorkspace: WorkspaceProviding {
         var running: Set<String> = []
         var activateReturn = true
@@ -244,7 +244,7 @@ final class AppSwitcherTests: XCTestCase {
         }
     }
 
-    func test_switchTo_runningApp_activatesAndDoesNotLaunch() {
+    @Test func runningAppActivatesAndDoesNotLaunch() {
         let mock = MockWorkspace()
         mock.running = ["com.foo.Bar"]
         let switcher = AppSwitcher(workspace: mock)
@@ -252,24 +252,24 @@ final class AppSwitcherTests: XCTestCase {
         var result: AppSwitcher.SwitchResult?
         switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
 
-        XCTAssertEqual(result, .activated)
-        XCTAssertEqual(mock.activatedIDs, ["com.foo.Bar"])
-        XCTAssertTrue(mock.launchedIDs.isEmpty)
+        #expect(result == .activated)
+        #expect(mock.activatedIDs == ["com.foo.Bar"])
+        #expect(mock.launchedIDs.isEmpty)
     }
 
-    func test_switchTo_notRunningApp_launches() {
+    @Test func notRunningAppLaunches() {
         let mock = MockWorkspace()
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
         switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
 
-        XCTAssertEqual(result, .launched)
-        XCTAssertEqual(mock.launchedIDs, ["com.foo.Bar"])
-        XCTAssertTrue(mock.activatedIDs.isEmpty)
+        #expect(result == .launched)
+        #expect(mock.launchedIDs == ["com.foo.Bar"])
+        #expect(mock.activatedIDs.isEmpty)
     }
 
-    func test_switchTo_activateFails_returnsFailed() {
+    @Test func activateFailsReturnsFailed() {
         let mock = MockWorkspace()
         mock.running = ["com.foo.Bar"]
         mock.activateReturn = false
@@ -278,10 +278,10 @@ final class AppSwitcherTests: XCTestCase {
         var result: AppSwitcher.SwitchResult?
         switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
 
-        XCTAssertEqual(result, .failed)
+        #expect(result == .failed)
     }
 
-    func test_switchTo_launchFails_returnsFailed() {
+    @Test func launchFailsReturnsFailed() {
         let mock = MockWorkspace()
         mock.launchReturn = false
         let switcher = AppSwitcher(workspace: mock)
@@ -289,7 +289,7 @@ final class AppSwitcherTests: XCTestCase {
         var result: AppSwitcher.SwitchResult?
         switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
 
-        XCTAssertEqual(result, .failed)
+        #expect(result == .failed)
     }
 }
 ```
@@ -404,73 +404,72 @@ git commit -m "feat: add WorkspaceProviding protocol and AppSwitcher logic"
 Create `Tests/QuickSwitchCoreTests/AppListStoreTests.swift`:
 
 ```swift
-import XCTest
+import Testing
+import Foundation
 @testable import QuickSwitchCore
 
-final class AppListStoreTests: XCTestCase {
-    private var suiteName: String!
-    private var defaults: UserDefaults!
+// A reference-type suite so we can tear down in deinit (per the project's Swift testing rule).
+// Each test gets a fresh instance with its own unique UserDefaults suite — parallel-safe.
+final class AppListStoreTests {
+    private let suiteName: String
+    private let defaults: UserDefaults
 
-    override func setUp() {
-        super.setUp()
+    init() {
         suiteName = "test-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        defaults = UserDefaults(suiteName: suiteName)!
     }
 
-    override func tearDown() {
+    deinit {
         defaults.removePersistentDomain(forName: suiteName)
-        defaults = nil
-        suiteName = nil
-        super.tearDown()
     }
 
     private func item(_ id: String) -> AppItem {
         AppItem(bundleID: id, displayName: id.uppercased())
     }
 
-    func test_add_appendsItem() {
+    @Test func addAppendsItem() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
-        XCTAssertEqual(store.items.map(\.bundleID), ["a"])
+        #expect(store.items.map(\.bundleID) == ["a"])
     }
 
-    func test_add_ignoresDuplicateBundleID() {
+    @Test func addIgnoresDuplicateBundleID() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
         store.add(item("a"))
-        XCTAssertEqual(store.items.count, 1)
+        #expect(store.items.count == 1)
     }
 
-    func test_remove_deletesByBundleID() {
+    @Test func removeDeletesByBundleID() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
         store.add(item("b"))
         store.remove(bundleID: "a")
-        XCTAssertEqual(store.items.map(\.bundleID), ["b"])
+        #expect(store.items.map(\.bundleID) == ["b"])
     }
 
-    func test_move_reordersItems() {
+    @Test func moveReordersItems() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
         store.add(item("b"))
         store.add(item("c"))
         store.move(fromOffsets: IndexSet(integer: 0), toOffset: 3)
-        XCTAssertEqual(store.items.map(\.bundleID), ["b", "c", "a"])
+        #expect(store.items.map(\.bundleID) == ["b", "c", "a"])
     }
 
-    func test_persistence_roundTripsAcrossInstances() {
+    @Test func persistenceRoundTripsAcrossInstances() {
         let store1 = AppListStore(defaults: defaults)
         store1.add(item("a"))
         store1.add(item("b"))
 
         let store2 = AppListStore(defaults: defaults)
-        XCTAssertEqual(store2.items.map(\.bundleID), ["a", "b"])
+        #expect(store2.items.map(\.bundleID) == ["a", "b"])
     }
 
-    func test_load_skipsCorruptData() {
+    @Test func loadSkipsCorruptData() {
         defaults.set(Data("not json".utf8), forKey: "appItems")
         let store = AppListStore(defaults: defaults)
-        XCTAssertTrue(store.items.isEmpty)
+        #expect(store.items.isEmpty)
     }
 }
 ```
@@ -556,50 +555,40 @@ git commit -m "feat: add AppListStore with UserDefaults persistence"
 Create `Tests/QuickSwitchCoreTests/AppResolverTests.swift`:
 
 ```swift
-import XCTest
+import Testing
+import Foundation
 @testable import QuickSwitchCore
 
-final class AppResolverTests: XCTestCase {
+struct AppResolverTests {
     struct StubReader: BundleInfoReading {
         let result: (bundleID: String, displayName: String)?
         func readInfo(at url: URL) -> (bundleID: String, displayName: String)? { result }
     }
 
-    func test_resolve_validApp_returnsItem() {
+    @Test func validAppReturnsItem() {
         let reader = StubReader(result: ("com.google.Chrome", "Google Chrome"))
         let resolver = AppResolver(reader: reader)
         let url = URL(fileURLWithPath: "/Applications/Google Chrome.app")
 
-        let item = resolver.resolve(url: url)
-
-        XCTAssertEqual(item, AppItem(bundleID: "com.google.Chrome", displayName: "Google Chrome"))
+        #expect(resolver.resolve(url: url) == AppItem(bundleID: "com.google.Chrome", displayName: "Google Chrome"))
     }
 
-    func test_resolve_nonAppExtension_returnsNil() {
-        let reader = StubReader(result: ("com.x", "X"))
-        let resolver = AppResolver(reader: reader)
-        let url = URL(fileURLWithPath: "/Users/me/file.txt")
-
-        XCTAssertNil(resolver.resolve(url: url))
+    @Test func nonAppExtensionReturnsNil() {
+        let resolver = AppResolver(reader: StubReader(result: ("com.x", "X")))
+        #expect(resolver.resolve(url: URL(fileURLWithPath: "/Users/me/file.txt")) == nil)
     }
 
-    func test_resolve_unreadableBundle_returnsNil() {
-        let reader = StubReader(result: nil)
-        let resolver = AppResolver(reader: reader)
-        let url = URL(fileURLWithPath: "/Applications/Broken.app")
-
-        XCTAssertNil(resolver.resolve(url: url))
+    @Test func unreadableBundleReturnsNil() {
+        let resolver = AppResolver(reader: StubReader(result: nil))
+        #expect(resolver.resolve(url: URL(fileURLWithPath: "/Applications/Broken.app")) == nil)
     }
 
-    func test_resolve_emptyBundleID_returnsNil() {
-        let reader = StubReader(result: ("", "Nameless"))
-        let resolver = AppResolver(reader: reader)
-        let url = URL(fileURLWithPath: "/Applications/Nameless.app")
-
-        XCTAssertNil(resolver.resolve(url: url))
+    @Test func emptyBundleIDReturnsNil() {
+        let resolver = AppResolver(reader: StubReader(result: ("", "Nameless")))
+        #expect(resolver.resolve(url: URL(fileURLWithPath: "/Applications/Nameless.app")) == nil)
     }
 
-    func test_systemReader_readsHandBuiltApp() throws {
+    @Test func systemReaderReadsHandBuiltApp() throws {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("Fake-\(UUID().uuidString).app")
         let contents = tmp.appendingPathComponent("Contents")
@@ -622,8 +611,8 @@ final class AppResolverTests: XCTestCase {
 
         let info = SystemBundleInfoReader().readInfo(at: tmp)
 
-        XCTAssertEqual(info?.bundleID, "com.example.Fake")
-        XCTAssertEqual(info?.displayName, "Fake App")
+        #expect(info?.bundleID == "com.example.Fake")
+        #expect(info?.displayName == "Fake App")
     }
 }
 ```
@@ -709,51 +698,48 @@ git commit -m "feat: add AppResolver to parse .app bundles into AppItems"
 Create `Tests/QuickSwitchCoreTests/PreferencesStoreTests.swift`:
 
 ```swift
-import XCTest
+import Testing
+import Foundation
 @testable import QuickSwitchCore
 
-final class PreferencesStoreTests: XCTestCase {
-    private var suiteName: String!
-    private var defaults: UserDefaults!
+final class PreferencesStoreTests {
+    private let suiteName: String
+    private let defaults: UserDefaults
 
-    override func setUp() {
-        super.setUp()
+    init() {
         suiteName = "test-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        defaults = UserDefaults(suiteName: suiteName)!
     }
 
-    override func tearDown() {
+    deinit {
         defaults.removePersistentDomain(forName: suiteName)
-        defaults = nil
-        suiteName = nil
-        super.tearDown()
     }
 
-    func test_defaults_areMediumAndAlwaysOnTop() {
+    @Test func defaultsAreMediumAndAlwaysOnTop() {
         let prefs = PreferencesStore(defaults: defaults)
-        XCTAssertEqual(prefs.iconSize, .medium)
-        XCTAssertTrue(prefs.alwaysOnTop)
+        #expect(prefs.iconSize == .medium)
+        #expect(prefs.alwaysOnTop)
     }
 
-    func test_iconSize_persists() {
+    @Test func iconSizePersists() {
         let prefs1 = PreferencesStore(defaults: defaults)
         prefs1.iconSize = .large
 
         let prefs2 = PreferencesStore(defaults: defaults)
-        XCTAssertEqual(prefs2.iconSize, .large)
+        #expect(prefs2.iconSize == .large)
     }
 
-    func test_alwaysOnTop_persists() {
+    @Test func alwaysOnTopPersists() {
         let prefs1 = PreferencesStore(defaults: defaults)
         prefs1.alwaysOnTop = false
 
         let prefs2 = PreferencesStore(defaults: defaults)
-        XCTAssertFalse(prefs2.alwaysOnTop)
+        #expect(prefs2.alwaysOnTop == false)
     }
 
-    func test_iconSize_points_increaseWithSize() {
-        XCTAssertLessThan(IconSize.small.points, IconSize.medium.points)
-        XCTAssertLessThan(IconSize.medium.points, IconSize.large.points)
+    @Test func iconSizePointsIncreaseWithSize() {
+        #expect(IconSize.small.points < IconSize.medium.points)
+        #expect(IconSize.medium.points < IconSize.large.points)
     }
 }
 ```
