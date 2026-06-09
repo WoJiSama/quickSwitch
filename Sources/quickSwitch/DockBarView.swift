@@ -27,18 +27,23 @@ struct DockBarView: View {
                     dragging = item
                     return NSItemProvider(object: item.bundleID as NSString)
                 }
+                // Each icon accepts BOTH an external .app drop (add) and an
+                // internal icon drag (reorder), so dropping an app anywhere on
+                // the bar works — the icons no longer shadow the add target.
                 .onDrop(
-                    of: [UTType.text],
-                    delegate: ReorderDropDelegate(target: item, store: store, dragging: $dragging)
+                    of: [UTType.fileURL, UTType.text],
+                    delegate: IconDropDelegate(target: item, store: store, resolver: resolver, dragging: $dragging)
                 )
             }
             addButton
         }
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .contentShape(Rectangle())
         .contextMenu { settingsMenu }
+        // Fallback target for drops landing on the bar's padding / gaps.
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-            handleAppDrop(providers)
+            addApps(from: providers, resolver: resolver, store: store)
         }
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
@@ -108,27 +113,37 @@ struct DockBarView: View {
             store.add(item)
         }
     }
-
-    private func handleAppDrop(_ providers: [NSItemProvider]) -> Bool {
-        var accepted = false
-        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            accepted = true
-            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
-                guard let data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil),
-                      let item = resolver.resolve(url: url) else { return }
-                DispatchQueue.main.async { store.add(item) }
-            }
-        }
-        return accepted
-    }
 }
 
-/// Reorders items as one is dragged over another.
-private struct ReorderDropDelegate: DropDelegate {
+/// Loads dropped `.app` URLs, resolves each to an AppItem, and adds it on the main actor.
+/// Shared by the per-icon drop delegate and the bar's fallback drop target.
+@discardableResult
+private func addApps(from providers: [NSItemProvider], resolver: AppResolver, store: AppListStore) -> Bool {
+    var accepted = false
+    for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+        accepted = true
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+            guard let data,
+                  let url = URL(dataRepresentation: data, relativeTo: nil),
+                  let item = resolver.resolve(url: url)
+            else { return }
+            DispatchQueue.main.async { store.add(item) }
+        }
+    }
+    return accepted
+}
+
+/// Handles drops on a specific icon: an external `.app` adds it; an internal
+/// icon drag reorders the list live as it passes over this icon.
+private struct IconDropDelegate: DropDelegate {
     let target: AppItem
     let store: AppListStore
+    let resolver: AppResolver
     @Binding var dragging: AppItem?
+
+    func validateDrop(info: DropInfo) -> Bool {
+        dragging != nil || info.hasItemsConforming(to: [UTType.fileURL])
+    }
 
     func dropEntered(info: DropInfo) {
         guard let dragging, dragging != target,
@@ -139,11 +154,16 @@ private struct ReorderDropDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
+        DropProposal(operation: dragging != nil ? .move : .copy)
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        dragging = nil
+        let fileProviders = info.itemProviders(for: [UTType.fileURL])
+        if !fileProviders.isEmpty {
+            dragging = nil
+            return addApps(from: fileProviders, resolver: resolver, store: store)
+        }
+        dragging = nil // internal reorder already applied in dropEntered
         return true
     }
 }
