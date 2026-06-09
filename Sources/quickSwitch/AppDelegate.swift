@@ -5,14 +5,19 @@ import QuickSwitchCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: DockPanel?
 
+    private let appList = AppListStore()
+    private let prefs = PreferencesStore()
+    private let switcher = AppSwitcher(workspace: SystemWorkspace())
+    private let resolver = AppResolver()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let stub = HStack {
-            Image(systemName: "square.grid.2x2")
-                .font(.system(size: 28))
-                .padding(12)
-        }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        panel = DockPanel(rootView: stub, alwaysOnTop: true)
+        let root = DockBarView(
+            store: appList,
+            prefs: prefs,
+            switcher: switcher,
+            resolver: resolver
+        )
+        panel = DockPanel(rootView: root, alwaysOnTop: prefs.alwaysOnTop)
         panel?.showCentered()
     }
 }
