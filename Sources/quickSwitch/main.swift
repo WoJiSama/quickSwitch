@@ -1,4 +1,7 @@
-import Foundation
+import AppKit
 
-// Replaced in Task 7 with the real AppKit entry point.
-print("quickSwitch scaffold")
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory) // background widget: no Dock icon, no ⌘Tab
+app.run()
