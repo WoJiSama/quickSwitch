@@ -114,6 +114,7 @@ struct DockBarView: View {
                 }
             }
         }
+        Button("添加网址…") { promptAddURL() }
         Divider()
         Menu("图标大小") {
             ForEach(IconSize.allCases, id: \.self) { size in
@@ -191,6 +192,37 @@ struct DockBarView: View {
             for url in panel.urls {
                 addItem(from: url, resolver: resolver, store: store, feedback: feedback)
             }
+        }
+    }
+
+    /// Reliable way to add a web page without fighting tab/Dock drag: paste a link.
+    private func promptAddURL() {
+        let alert = NSAlert()
+        alert.messageText = "添加网址"
+        alert.informativeText = "粘贴一个网页链接(http/https),点它会用默认浏览器打开。"
+        alert.addButton(withTitle: "添加")
+        alert.addButton(withTitle: "取消")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        field.placeholderString = "https://example.com"
+        if let clip = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           clip.contains("://") || clip.contains(".") {
+            field.stringValue = clip
+        }
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        var text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        if !text.contains("://") { text = "https://" + text }
+        if let url = URL(string: text) {
+            addItem(from: url, resolver: resolver, store: store, feedback: feedback)
+        } else {
+            feedback.rejected()
         }
     }
 }
