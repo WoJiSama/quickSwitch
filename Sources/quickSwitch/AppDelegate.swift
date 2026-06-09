@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let appList = AppListStore()
     private let prefs = PreferencesStore()
+    private let feedback = FeedbackCenter()
     private let switcher = AppSwitcher(workspace: SystemWorkspace())
     private let resolver = AppResolver()
     private let loginItem = LoginItemManager()
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let root = DockBarView(
             store: appList,
             prefs: prefs,
+            feedback: feedback,
             switcher: switcher,
             resolver: resolver,
             loginItem: loginItem,
@@ -32,8 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return false }
                 var added = false
                 for url in urls {
-                    if let item = self.resolver.resolve(url: url) {
-                        self.appList.add(item)
+                    if addItem(from: url, resolver: self.resolver, store: self.appList, feedback: self.feedback) {
                         added = true
                     }
                 }

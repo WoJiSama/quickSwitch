@@ -29,8 +29,8 @@ final class AppListStoreTests {
 
     @Test func addIgnoresDuplicateID() {
         let store = AppListStore(defaults: defaults)
-        store.add(item("a"))
-        store.add(item("a"))
+        #expect(store.add(item("a")) == .added)
+        #expect(store.add(item("a")) == .duplicate)
         #expect(store.items.count == 1)
     }
 

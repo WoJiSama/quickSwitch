@@ -1,6 +1,12 @@
 import Foundation
 import Combine
 
+/// Result of trying to add an entry.
+public enum AddOutcome: Equatable {
+    case added
+    case duplicate
+}
+
 /// Single source of truth for the dock's entries. Persists to UserDefaults on every mutation.
 public final class AppListStore: ObservableObject {
     @Published public private(set) var items: [AppItem]
@@ -13,10 +19,12 @@ public final class AppListStore: ObservableObject {
         self.items = Self.load(from: defaults)
     }
 
-    public func add(_ item: AppItem) {
-        guard !items.contains(where: { $0.id == item.id }) else { return }
+    @discardableResult
+    public func add(_ item: AppItem) -> AddOutcome {
+        guard !items.contains(where: { $0.id == item.id }) else { return .duplicate }
         items.append(item)
         persist()
+        return .added
     }
 
     public func remove(id: String) {

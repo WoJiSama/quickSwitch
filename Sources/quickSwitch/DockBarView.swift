@@ -6,6 +6,7 @@ import QuickSwitchCore
 struct DockBarView: View {
     @ObservedObject var store: AppListStore
     @ObservedObject var prefs: PreferencesStore
+    @ObservedObject var feedback: FeedbackCenter
     let switcher: AppSwitcher
     let resolver: AppResolver
     let loginItem: LoginItemControlling
@@ -14,6 +15,7 @@ struct DockBarView: View {
 
     @State private var dragging: AppItem?
     @State private var launchAtLogin: Bool = false
+    @State private var shake: CGFloat = 0
 
     /// Transparent space ABOVE the bar so the hover name label can rise above the
     /// icons. DockPanel clamps the window within the screen so this never clips.
@@ -29,13 +31,17 @@ struct DockBarView: View {
         }
         .fixedSize()
         .contentShape(Rectangle())
-        // Whole-window drop target — covers the bar AND the transparent label
-        // area, so an app/file/folder/link dropped anywhere lands.
+        // Whole-window drop target — covers the bar AND the transparent label area.
         .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
-            addItems(from: providers, resolver: resolver, store: store)
+            addDroppedItems(providers)
         }
         .background(sizeReporter)
         .onPreferenceChange(BarSizeKey.self) { onResize($0) }
+        .onChange(of: feedback.tick) { _ in
+            if feedback.event == .rejected {
+                withAnimation(.linear(duration: 0.4)) { shake += 1 }
+            }
+        }
     }
 
     private var bar: some View {
@@ -44,18 +50,20 @@ struct DockBarView: View {
                 DockIconView(
                     item: item,
                     size: prefs.iconSize.points,
-                    onActivate: { switcher.open(item) { _ in } },
+                    switcher: switcher,
+                    feedback: feedback,
                     onRemove: { store.remove(id: item.id) }
                 )
                 .onDrag {
                     dragging = item
                     return NSItemProvider(object: item.id as NSString)
                 }
-                // Each icon accepts an external add (app/file/folder/link) and an
-                // internal icon drag (reorder), so dropping anywhere on the bar works.
                 .onDrop(
                     of: [UTType.fileURL, UTType.url, UTType.text],
-                    delegate: IconDropDelegate(target: item, store: store, resolver: resolver, dragging: $dragging)
+                    delegate: IconDropDelegate(
+                        target: item, store: store, resolver: resolver,
+                        feedback: feedback, dragging: $dragging
+                    )
                 )
             }
             addButton
@@ -63,6 +71,7 @@ struct DockBarView: View {
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .contentShape(RoundedRectangle(cornerRadius: 18))
+        .modifier(Shake(animatableData: shake))
         .contextMenu { settingsMenu }
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
@@ -73,11 +82,35 @@ struct DockBarView: View {
         }
     }
 
+    @discardableResult
+    private func addDroppedItems(_ providers: [NSItemProvider]) -> Bool {
+        var accepted = false
+        for provider in providers {
+            let typeID: String
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                typeID = UTType.fileURL.identifier
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                typeID = UTType.url.identifier
+            } else {
+                continue
+            }
+            accepted = true
+            provider.loadDataRepresentation(forTypeIdentifier: typeID) { data, _ in
+                guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                DispatchQueue.main.async {
+                    addItem(from: url, resolver: resolver, store: store, feedback: feedback)
+                }
+            }
+        }
+        return accepted
+    }
+
     @ViewBuilder private var settingsMenu: some View {
         Menu("添加正在运行的应用") {
             ForEach(runningApps(), id: \.bundleID) { app in
                 Button(app.name) {
-                    store.add(AppItem(bundleID: app.bundleID, displayName: app.name))
+                    let item = AppItem(bundleID: app.bundleID, displayName: app.name)
+                    if store.add(item) == .duplicate { feedback.duplicate(item.id) }
                 }
             }
         }
@@ -156,7 +189,7 @@ struct DockBarView: View {
         panel.canChooseFiles = true       // allow apps and any file
         if panel.runModal() == .OK {
             for url in panel.urls {
-                if let item = resolver.resolve(url: url) { store.add(item) }
+                addItem(from: url, resolver: resolver, store: store, feedback: feedback)
             }
         }
     }
@@ -167,38 +200,13 @@ private struct BarSizeKey: PreferenceKey {
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
 }
 
-/// Loads dropped file/web URLs, resolves each to an AppItem, and adds it on the
-/// main actor. Shared by the per-icon drop delegate and the window drop target.
-@discardableResult
-private func addItems(from providers: [NSItemProvider], resolver: AppResolver, store: AppListStore) -> Bool {
-    var accepted = false
-    for provider in providers {
-        let typeID: String
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            typeID = UTType.fileURL.identifier
-        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-            typeID = UTType.url.identifier
-        } else {
-            continue
-        }
-        accepted = true
-        provider.loadDataRepresentation(forTypeIdentifier: typeID) { data, _ in
-            guard let data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil),
-                  let item = resolver.resolve(url: url)
-            else { return }
-            DispatchQueue.main.async { store.add(item) }
-        }
-    }
-    return accepted
-}
-
-/// Handles drops on a specific icon: an external app/file/folder/link adds it;
-/// an internal icon drag reorders the list live as it passes over this icon.
+/// Handles drops on a specific icon: an external app/file/folder/link adds it (with
+/// feedback); an internal icon drag reorders the list live as it passes over this icon.
 private struct IconDropDelegate: DropDelegate {
     let target: AppItem
     let store: AppListStore
     let resolver: AppResolver
+    let feedback: FeedbackCenter
     @Binding var dragging: AppItem?
 
     func validateDrop(info: DropInfo) -> Bool {
@@ -221,7 +229,17 @@ private struct IconDropDelegate: DropDelegate {
         let providers = info.itemProviders(for: [UTType.fileURL, UTType.url])
         if !providers.isEmpty {
             dragging = nil
-            return addItems(from: providers, resolver: resolver, store: store)
+            for provider in providers {
+                let typeID = provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+                    ? UTType.fileURL.identifier : UTType.url.identifier
+                provider.loadDataRepresentation(forTypeIdentifier: typeID) { data, _ in
+                    guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                    DispatchQueue.main.async {
+                        addItem(from: url, resolver: resolver, store: store, feedback: feedback)
+                    }
+                }
+            }
+            return true
         }
         dragging = nil // internal reorder already applied in dropEntered
         return true

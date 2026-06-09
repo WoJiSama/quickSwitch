@@ -20,4 +20,17 @@ enum IconLoader {
             return NSWorkspace.shared.icon(forFile: browser.path)
         }
     }
+
+    /// Whether the entry still resolves to something openable (app installed /
+    /// file present). Web links are always considered available.
+    static func isAvailable(for item: AppItem) -> Bool {
+        switch item.target {
+        case .app(let bundleID):
+            return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+        case .path(let path):
+            return FileManager.default.fileExists(atPath: path)
+        case .url:
+            return true
+        }
+    }
 }
