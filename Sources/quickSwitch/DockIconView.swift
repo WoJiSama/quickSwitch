@@ -8,6 +8,7 @@ import QuickSwitchCore
 struct DockIconView: View {
     let item: AppItem
     let size: CGFloat
+    let axis: DockAxis
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
     let onHoverName: (String?) -> Void
@@ -23,6 +24,13 @@ struct DockIconView: View {
 
     private var isAvailable: Bool { IconLoader.isAvailable(for: item) }
 
+    // Lift "out of" the bar: horizontal pops up, vertical stays put (lifting up would
+    // overlap the icon above it).
+    private var hoverOffsetY: CGFloat {
+        guard isHovering, axis == .horizontal else { return 0 }
+        return -Self.hoverLift
+    }
+
     var body: some View {
         iconImage
             .resizable()
@@ -31,7 +39,7 @@ struct DockIconView: View {
             .grayscale(isAvailable ? 0 : 1)
             .opacity(isAvailable ? 1 : 0.5)
             .scaleEffect(isHovering ? Self.hoverScale : 1.0)
-            .offset(y: isHovering ? -Self.hoverLift : 0)
+            .offset(y: hoverOffsetY)
             .shadow(color: .black.opacity(isHovering ? 0.30 : 0), radius: 5, y: 2)
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -43,7 +51,7 @@ struct DockIconView: View {
             }
             .contentShape(Rectangle())
             .onHover { hovering in
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.62)) {
+                withMotion(.spring(response: 0.28, dampingFraction: 0.62)) {
                     isHovering = hovering
                 }
                 onHoverName(hovering ? item.displayName : nil)
@@ -60,20 +68,24 @@ struct DockIconView: View {
                 Button("重命名…") { promptRename() }
                 Button("移除 \(item.displayName)", role: .destructive) { onRemove() }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(item.displayName + (isAvailable ? "" : ",不可用"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { switcher.open(item) { _ in } }
             .zIndex(isHovering ? 1 : 0)
     }
 
     private func triggerFail() {
-        withAnimation(.easeIn(duration: 0.08)) { failFlash = true }
+        withMotion(.easeIn(duration: 0.08)) { failFlash = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            withAnimation(.easeOut(duration: 0.3)) { failFlash = false }
+            withMotion(.easeOut(duration: 0.3)) { failFlash = false }
         }
     }
 
     private func triggerDuplicate() {
-        withAnimation(.easeIn(duration: 0.08)) { dupFlash = true }
+        withMotion(.easeIn(duration: 0.08)) { dupFlash = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeOut(duration: 0.3)) { dupFlash = false }
+            withMotion(.easeOut(duration: 0.3)) { dupFlash = false }
         }
     }
 

@@ -15,6 +15,7 @@ struct DockBarView: View {
     let onOpenSettings: () -> Void
     let onOpenHelp: () -> Void
     let showHoverName: (String?) -> Void
+    let onMoveEnded: () -> Void
 
     @State private var dragging: AppItem?
     @State private var shake: CGFloat = 0
@@ -47,12 +48,13 @@ struct DockBarView: View {
                 DockIconView(
                     item: item,
                     size: CGFloat(prefs.iconSize),
+                    axis: prefs.axis,
                     switcher: switcher,
                     feedback: feedback,
                     onHoverName: showHoverName,
                     onRename: { store.rename(id: item.id, to: $0) },
                     onRemove: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                        withMotion(.spring(response: 0.3, dampingFraction: 0.72)) {
                             store.remove(id: item.id)
                         }
                     }
@@ -81,7 +83,7 @@ struct DockBarView: View {
                 RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
                     .fill(.regularMaterial)
                     .opacity(prefs.backgroundOpacity)
-                WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow)
+                WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow, onMoveEnded: onMoveEnded)
                     .contextMenu { settingsMenu }
             }
         }
@@ -122,7 +124,7 @@ struct DockBarView: View {
             ForEach(runningApps(), id: \.bundleID) { app in
                 Button(app.name) {
                     let item = AppItem(bundleID: app.bundleID, displayName: app.name)
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                    withMotion(.spring(response: 0.3, dampingFraction: 0.72)) {
                         if store.add(item) == .duplicate { feedback.duplicate(item.id) }
                     }
                 }
@@ -158,6 +160,7 @@ struct DockBarView: View {
         }
         .buttonStyle(.plain)
         .help("添加应用 / 文件 / 文件夹")
+        .accessibilityLabel("添加应用、文件或网址")
     }
 
     private func openPicker() {
@@ -228,7 +231,7 @@ private struct IconDropDelegate: DropDelegate {
               let from = store.items.firstIndex(of: dragging),
               let to = store.items.firstIndex(of: target)
         else { return }
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+        withMotion(.spring(response: 0.28, dampingFraction: 0.72)) {
             store.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
         }
     }

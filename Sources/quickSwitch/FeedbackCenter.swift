@@ -36,7 +36,7 @@ func addItem(from url: URL, resolver: AppResolver, store: AppListStore, feedback
         return false
     }
     var outcome: AddOutcome = .added
-    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+    withMotion(.spring(response: 0.3, dampingFraction: 0.72)) {
         outcome = store.add(item)
     }
     if outcome == .duplicate {

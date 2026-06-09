@@ -12,6 +12,10 @@ final class EdgeDockController {
 
     private(set) var mode: Mode = .floating
 
+    /// Called when the dock state settles after a drag (snapped to an edge or back to
+    /// floating), so the position/edge can be persisted.
+    var onStateChanged: (() -> Void)?
+
     private weak var panel: NSPanel?
     private var timer: Timer?
 
@@ -47,6 +51,13 @@ final class EdgeDockController {
     func reanchor() {
         guard mode != .floating else { return }
         applyDockedFrame(animated: false)
+    }
+
+    /// Restore a saved docked state at launch (the docked frame is applied by the
+    /// next reanchor when the content size is known).
+    func restore(_ savedMode: Mode) {
+        mode = savedMode
+        revealed = (savedMode == .floating)
     }
 
     private func now() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
@@ -117,6 +128,7 @@ final class EdgeDockController {
         } else {
             mode = .floating
         }
+        onStateChanged?()
     }
 
     private func revealZoneContains(_ p: NSPoint, screen: NSScreen) -> Bool {
@@ -145,7 +157,7 @@ final class EdgeDockController {
         }
         f.origin.y = min(max(f.origin.y, vf.minY), vf.maxY - f.height)
 
-        if animated {
+        if animated && !prefersReducedMotion {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.18
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)

@@ -8,6 +8,7 @@ import AppKit
 struct WindowDragHandle: View {
     let windowOrigin: () -> CGPoint
     let moveWindow: (CGPoint) -> Void
+    let onMoveEnded: () -> Void
 
     @State private var start: (mouse: CGPoint, origin: CGPoint)?
 
@@ -25,7 +26,10 @@ struct WindowDragHandle: View {
                             y: anchor.origin.y + (mouse.y - anchor.mouse.y)
                         ))
                     }
-                    .onEnded { _ in start = nil }
+                    .onEnded { _ in
+                        start = nil
+                        onMoveEnded()
+                    }
             )
     }
 }

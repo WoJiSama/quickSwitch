@@ -17,6 +17,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindowController(prefs: prefs, loginItem: loginItem)
     private let help = HelpWindowController()
 
+    private enum WinKeys {
+        static let originX = "win.originX"
+        static let originY = "win.originY"
+        static let hasPosition = "win.hasPosition"
+        static let edge = "win.edge"
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let root = DockBarView(
             store: appList,
@@ -31,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onOpenHelp: { [weak self] in self?.help.show() },
             showHoverName: { [weak self] name in
                 if let name { self?.hoverName.show(name) } else { self?.hoverName.hide() }
-            }
+            },
+            onMoveEnded: { [weak self] in self?.saveWindowState() }
         )
         panel = DockPanel(
             rootView: root,
@@ -43,13 +51,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     added = true
                 }
                 return added
-            }
+            },
+            onEdgeStateChanged: { [weak self] in self?.saveWindowState() }
         )
-        panel?.showCentered()
 
-        // Apply always-on-top changes from anywhere (menu or Settings window).
+        let saved = savedWindowState()
+        panel?.show(restoreOrigin: saved.origin, edge: saved.edge)
+
         prefs.$alwaysOnTop
             .sink { [weak self] on in self?.panel?.setAlwaysOnTop(on) }
             .store(in: &cancellables)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        saveWindowState()
+    }
+
+    // MARK: - Window state persistence
+
+    private func saveWindowState() {
+        guard let panel else { return }
+        let defaults = UserDefaults.standard
+        let origin = panel.frame.origin
+        defaults.set(Double(origin.x), forKey: WinKeys.originX)
+        defaults.set(Double(origin.y), forKey: WinKeys.originY)
+        defaults.set(true, forKey: WinKeys.hasPosition)
+        defaults.set(edgeString(panel.edgeMode), forKey: WinKeys.edge)
+    }
+
+    private func savedWindowState() -> (origin: NSPoint?, edge: EdgeDockController.Mode) {
+        let defaults = UserDefaults.standard
+        let origin: NSPoint? = defaults.bool(forKey: WinKeys.hasPosition)
+            ? NSPoint(x: defaults.double(forKey: WinKeys.originX), y: defaults.double(forKey: WinKeys.originY))
+            : nil
+        return (origin, edgeMode(defaults.string(forKey: WinKeys.edge) ?? "floating"))
+    }
+
+    private func edgeString(_ mode: EdgeDockController.Mode) -> String {
+        switch mode {
+        case .left: return "left"
+        case .right: return "right"
+        case .floating: return "floating"
+        }
+    }
+
+    private func edgeMode(_ string: String) -> EdgeDockController.Mode {
+        switch string {
+        case "left": return .left
+        case "right": return .right
+        default: return .floating
+        }
     }
 }

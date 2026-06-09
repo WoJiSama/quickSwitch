@@ -1,10 +1,23 @@
 import AppKit
 import QuickSwitchCore
 
-/// Fetches the icon for a dock entry — by bundle id for apps, by path for
-/// files/folders, and the default browser's icon for web links.
+/// Fetches the icon for a dock entry, caching by entry id so repeated SwiftUI
+/// re-renders (hover, drag, slider changes) don't hit NSWorkspace every frame.
 enum IconLoader {
+    private static var cache: [String: NSImage] = [:]
+
     static func icon(for item: AppItem) -> NSImage? {
+        if let cached = cache[item.id] { return cached }
+        guard let image = resolve(item) else { return nil }
+        cache[item.id] = image
+        return image
+    }
+
+    /// Drop cached icons (e.g. if apps are installed/updated). Currently unused at
+    /// runtime; icons are stable enough that a relaunch refreshes them.
+    static func invalidate() { cache.removeAll() }
+
+    private static func resolve(_ item: AppItem) -> NSImage? {
         switch item.target {
         case .app(let bundleID):
             guard let url = NSWorkspace.shared

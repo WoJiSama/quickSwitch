@@ -34,12 +34,12 @@ public struct SystemWorkspace: WorkspaceProviding {
         }
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
-        switchLog.info("openApp \(bundleID, privacy: .public) -> openApplication \(url.path, privacy: .public)")
+        switchLog.debug("openApp \(bundleID, privacy: .public) -> openApplication \(url.path, privacy: .private)")
         NSWorkspace.shared.openApplication(at: url, configuration: config) { runningApp, error in
             if let error {
                 switchLog.error("openApp \(bundleID, privacy: .public) FAILED: \(error.localizedDescription, privacy: .public)")
             } else {
-                switchLog.info("openApp \(bundleID, privacy: .public) -> ok (\(runningApp?.localizedName ?? "?", privacy: .public))")
+                switchLog.debug("openApp \(bundleID, privacy: .public) -> ok (\(runningApp?.localizedName ?? "?", privacy: .private))")
             }
             completion(error == nil)
         }
@@ -47,17 +47,17 @@ public struct SystemWorkspace: WorkspaceProviding {
 
     public func open(path: String) -> Bool {
         let ok = NSWorkspace.shared.open(URL(fileURLWithPath: path))
-        switchLog.info("open path \(path, privacy: .public) -> \(ok)")
+        switchLog.debug("open path \(path, privacy: .private) -> \(ok)")
         return ok
     }
 
     public func openWeb(_ urlString: String) -> Bool {
         guard let url = URL(string: urlString) else {
-            switchLog.error("openWeb invalid url: \(urlString, privacy: .public)")
+            switchLog.error("openWeb invalid url: \(urlString, privacy: .private)")
             return false
         }
         let ok = NSWorkspace.shared.open(url)
-        switchLog.info("openWeb \(urlString, privacy: .public) -> \(ok)")
+        switchLog.debug("openWeb \(urlString, privacy: .private) -> \(ok)")
         return ok
     }
 }
