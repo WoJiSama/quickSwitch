@@ -56,7 +56,7 @@ struct DockIconView: View {
     }
 
     private var iconImage: Image {
-        if let nsImage = IconLoader.icon(forBundleID: item.bundleID) {
+        if let nsImage = IconLoader.icon(for: item) {
             return Image(nsImage: nsImage)
         }
         return Image(systemName: "questionmark.app.dashed")

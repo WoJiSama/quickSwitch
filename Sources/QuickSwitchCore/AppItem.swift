@@ -1,14 +1,37 @@
 import Foundation
 
-/// An app the user has added to the dock. Immutable; identified by bundle id.
+/// One entry in the dock: either an application, or a file/folder shortcut.
 public struct AppItem: Equatable, Identifiable, Codable, Sendable {
-    public let bundleID: String
+    /// What activating this entry points at.
+    public enum Target: Equatable, Codable, Sendable {
+        case app(bundleID: String)
+        case path(String) // absolute path to a file or folder
+    }
+
+    public let target: Target
     public let displayName: String
 
-    public init(bundleID: String, displayName: String) {
-        self.bundleID = bundleID
+    public init(target: Target, displayName: String) {
+        self.target = target
         self.displayName = displayName
     }
 
-    public var id: String { bundleID }
+    /// Convenience for an application entry.
+    public init(bundleID: String, displayName: String) {
+        self.init(target: .app(bundleID: bundleID), displayName: displayName)
+    }
+
+    /// Convenience for a file/folder entry.
+    public init(path: String, displayName: String) {
+        self.init(target: .path(path), displayName: displayName)
+    }
+
+    /// Stable unique key. Bundle ids and absolute paths never collide
+    /// (absolute paths begin with "/").
+    public var id: String {
+        switch target {
+        case .app(let bundleID): return bundleID
+        case .path(let path): return path
+        }
+    }
 }

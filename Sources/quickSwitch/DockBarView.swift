@@ -35,12 +35,12 @@ struct DockBarView: View {
                 DockIconView(
                     item: item,
                     size: prefs.iconSize.points,
-                    onActivate: { switcher.switchTo(bundleID: item.bundleID) { _ in } },
-                    onRemove: { store.remove(bundleID: item.bundleID) }
+                    onActivate: { switcher.open(item) { _ in } },
+                    onRemove: { store.remove(id: item.id) }
                 )
                 .onDrag {
                     dragging = item
-                    return NSItemProvider(object: item.bundleID as NSString)
+                    return NSItemProvider(object: item.id as NSString)
                 }
                 // Each icon accepts BOTH an external .app drop (add) and an
                 // internal icon drag (reorder), so dropping an app anywhere on
@@ -120,18 +120,19 @@ struct DockBarView: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .help("添加应用")
+        .help("添加应用 / 文件 / 文件夹")
     }
 
     private func openPicker() {
         let panel = NSOpenPanel()
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.allowedContentTypes = [.application]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        if panel.runModal() == .OK, let url = panel.url, let item = resolver.resolve(url: url) {
-            store.add(item)
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true // allow folders
+        panel.canChooseFiles = true       // allow apps and any file
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                if let item = resolver.resolve(url: url) { store.add(item) }
+            }
         }
     }
 }

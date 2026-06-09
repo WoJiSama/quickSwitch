@@ -1,11 +1,18 @@
 import AppKit
+import QuickSwitchCore
 
-/// Fetches an app's current icon by bundle id. Returns nil if the app is not installed.
+/// Fetches the icon for a dock entry — by bundle id for apps, by path for
+/// files/folders. Returns nil if an app is not installed.
 enum IconLoader {
-    static func icon(forBundleID bundleID: String) -> NSImage? {
-        guard let url = NSWorkspace.shared
-            .urlForApplication(withBundleIdentifier: bundleID)
-        else { return nil }
-        return NSWorkspace.shared.icon(forFile: url.path)
+    static func icon(for item: AppItem) -> NSImage? {
+        switch item.target {
+        case .app(let bundleID):
+            guard let url = NSWorkspace.shared
+                .urlForApplication(withBundleIdentifier: bundleID)
+            else { return nil }
+            return NSWorkspace.shared.icon(forFile: url.path)
+        case .path(let path):
+            return NSWorkspace.shared.icon(forFile: path)
+        }
     }
 }

@@ -6,8 +6,10 @@ struct AppSwitcherTests {
         var running: Set<String> = []
         var activateReturn = true
         var launchReturn = true
+        var openReturn = true
         private(set) var activatedIDs: [String] = []
         private(set) var launchedIDs: [String] = []
+        private(set) var openedPaths: [String] = []
 
         func isRunning(bundleID: String) -> Bool { running.contains(bundleID) }
         func activate(bundleID: String) -> Bool {
@@ -16,6 +18,13 @@ struct AppSwitcherTests {
         func launch(bundleID: String, completion: @escaping (Bool) -> Void) {
             launchedIDs.append(bundleID); completion(launchReturn)
         }
+        func open(path: String) -> Bool {
+            openedPaths.append(path); return openReturn
+        }
+    }
+
+    private func app(_ bundleID: String) -> AppItem {
+        AppItem(bundleID: bundleID, displayName: bundleID)
     }
 
     @Test func runningAppActivatesAndDoesNotLaunch() {
@@ -24,7 +33,7 @@ struct AppSwitcherTests {
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
+        switcher.open(app("com.foo.Bar")) { result = $0 }
 
         #expect(result == .activated)
         #expect(mock.activatedIDs == ["com.foo.Bar"])
@@ -36,7 +45,7 @@ struct AppSwitcherTests {
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
+        switcher.open(app("com.foo.Bar")) { result = $0 }
 
         #expect(result == .launched)
         #expect(mock.launchedIDs == ["com.foo.Bar"])
@@ -50,7 +59,7 @@ struct AppSwitcherTests {
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
+        switcher.open(app("com.foo.Bar")) { result = $0 }
 
         #expect(result == .failed)
     }
@@ -61,7 +70,31 @@ struct AppSwitcherTests {
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.switchTo(bundleID: "com.foo.Bar") { result = $0 }
+        switcher.open(app("com.foo.Bar")) { result = $0 }
+
+        #expect(result == .failed)
+    }
+
+    @Test func pathItemOpens() {
+        let mock = MockWorkspace()
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(path: "/tmp/notes.txt", displayName: "notes.txt")) { result = $0 }
+
+        #expect(result == .opened)
+        #expect(mock.openedPaths == ["/tmp/notes.txt"])
+        #expect(mock.activatedIDs.isEmpty)
+        #expect(mock.launchedIDs.isEmpty)
+    }
+
+    @Test func pathOpenFailsReturnsFailed() {
+        let mock = MockWorkspace()
+        mock.openReturn = false
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(path: "/tmp/gone", displayName: "gone")) { result = $0 }
 
         #expect(result == .failed)
     }

@@ -5,6 +5,8 @@ public protocol WorkspaceProviding {
     func isRunning(bundleID: String) -> Bool
     func activate(bundleID: String) -> Bool
     func launch(bundleID: String, completion: @escaping (Bool) -> Void)
+    /// Open a file or folder with its default handler. Returns whether it opened.
+    func open(path: String) -> Bool
 }
 
 /// Production implementation backed by NSWorkspace / NSRunningApplication.
@@ -35,5 +37,9 @@ public struct SystemWorkspace: WorkspaceProviding {
         NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
             completion(error == nil)
         }
+    }
+
+    public func open(path: String) -> Bool {
+        NSWorkspace.shared.open(URL(fileURLWithPath: path))
     }
 }

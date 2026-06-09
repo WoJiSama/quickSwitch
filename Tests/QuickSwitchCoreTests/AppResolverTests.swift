@@ -16,9 +16,31 @@ struct AppResolverTests {
         #expect(resolver.resolve(url: url) == AppItem(bundleID: "com.google.Chrome", displayName: "Google Chrome"))
     }
 
-    @Test func nonAppExtensionReturnsNil() {
+    @Test func nonexistentFileReturnsNil() {
         let resolver = AppResolver(reader: StubReader(result: ("com.x", "X")))
-        #expect(resolver.resolve(url: URL(fileURLWithPath: "/Users/me/file.txt")) == nil)
+        let url = URL(fileURLWithPath: "/no/such/path-\(UUID().uuidString).txt")
+        #expect(resolver.resolve(url: url) == nil)
+    }
+
+    @Test func existingFileBecomesPathItem() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("note-\(UUID().uuidString).txt")
+        try "hi".write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let item = AppResolver().resolve(url: url)
+        #expect(item?.target == .path(url.path))
+        #expect(item?.displayName == url.lastPathComponent)
+    }
+
+    @Test func existingFolderBecomesPathItem() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("folder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let item = AppResolver().resolve(url: url)
+        #expect(item?.target == .path(url.path))
     }
 
     @Test func unreadableBundleReturnsNil() {

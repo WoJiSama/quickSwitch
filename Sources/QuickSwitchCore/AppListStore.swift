@@ -1,12 +1,12 @@
 import Foundation
 import Combine
 
-/// Single source of truth for the dock's app list. Persists to UserDefaults on every mutation.
+/// Single source of truth for the dock's entries. Persists to UserDefaults on every mutation.
 public final class AppListStore: ObservableObject {
     @Published public private(set) var items: [AppItem]
 
     private let defaults: UserDefaults
-    private static let key = "appItems"
+    private static let key = "dockItems"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -14,13 +14,13 @@ public final class AppListStore: ObservableObject {
     }
 
     public func add(_ item: AppItem) {
-        guard !items.contains(where: { $0.bundleID == item.bundleID }) else { return }
+        guard !items.contains(where: { $0.id == item.id }) else { return }
         items.append(item)
         persist()
     }
 
-    public func remove(bundleID: String) {
-        items.removeAll { $0.bundleID == bundleID }
+    public func remove(id: String) {
+        items.removeAll { $0.id == id }
         persist()
     }
 

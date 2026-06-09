@@ -24,22 +24,29 @@ final class AppListStoreTests {
     @Test func addAppendsItem() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
-        #expect(store.items.map(\.bundleID) == ["a"])
+        #expect(store.items.map(\.id) == ["a"])
     }
 
-    @Test func addIgnoresDuplicateBundleID() {
+    @Test func addIgnoresDuplicateID() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
         store.add(item("a"))
         #expect(store.items.count == 1)
     }
 
-    @Test func removeDeletesByBundleID() {
+    @Test func addAllowsAppAndPathTogether() {
+        let store = AppListStore(defaults: defaults)
+        store.add(item("com.apple.Safari"))
+        store.add(AppItem(path: "/Users/me/Docs", displayName: "Docs"))
+        #expect(store.items.map(\.id) == ["com.apple.Safari", "/Users/me/Docs"])
+    }
+
+    @Test func removeDeletesByID() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
         store.add(item("b"))
-        store.remove(bundleID: "a")
-        #expect(store.items.map(\.bundleID) == ["b"])
+        store.remove(id: "a")
+        #expect(store.items.map(\.id) == ["b"])
     }
 
     @Test func moveReordersItems() {
@@ -48,20 +55,20 @@ final class AppListStoreTests {
         store.add(item("b"))
         store.add(item("c"))
         store.move(fromOffsets: IndexSet(integer: 0), toOffset: 3)
-        #expect(store.items.map(\.bundleID) == ["b", "c", "a"])
+        #expect(store.items.map(\.id) == ["b", "c", "a"])
     }
 
     @Test func persistenceRoundTripsAcrossInstances() {
         let store1 = AppListStore(defaults: defaults)
         store1.add(item("a"))
-        store1.add(item("b"))
+        store1.add(AppItem(path: "/tmp/x", displayName: "x"))
 
         let store2 = AppListStore(defaults: defaults)
-        #expect(store2.items.map(\.bundleID) == ["a", "b"])
+        #expect(store2.items.map(\.id) == ["a", "/tmp/x"])
     }
 
     @Test func loadSkipsCorruptData() {
-        defaults.set(Data("not json".utf8), forKey: "appItems")
+        defaults.set(Data("not json".utf8), forKey: "dockItems")
         let store = AppListStore(defaults: defaults)
         #expect(store.items.isEmpty)
     }
