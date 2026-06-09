@@ -17,12 +17,21 @@ final class SettingsWindowController {
 
     func show() {
         if window == nil {
-            let hosting = NSHostingController(rootView: SettingsView(prefs: prefs, loginItem: loginItem))
-            let window = NSWindow(contentViewController: hosting)
+            // Explicit content size — relying on the SwiftUI hosting controller to
+            // report a size can collapse the window to just its title bar.
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 520),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
             window.title = "quickSwitch 设置"
-            window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.level = .floating
+
+            let hosting = NSHostingView(rootView: SettingsView(prefs: prefs, loginItem: loginItem))
+            hosting.autoresizingMask = [.width, .height]
+            window.contentView = hosting
             self.window = window
         }
         NSApp.activate(ignoringOtherApps: true)

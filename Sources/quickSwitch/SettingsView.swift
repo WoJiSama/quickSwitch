@@ -46,7 +46,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 380)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
 
