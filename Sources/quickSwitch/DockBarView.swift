@@ -9,14 +9,12 @@ struct DockBarView: View {
     @ObservedObject var feedback: FeedbackCenter
     let switcher: AppSwitcher
     let resolver: AppResolver
-    let loginItem: LoginItemControlling
-    let onAlwaysOnTopChange: (Bool) -> Void
     let onResize: (CGSize) -> Void
     let windowOrigin: () -> CGPoint
     let moveWindow: (CGPoint) -> Void
+    let onOpenSettings: () -> Void
 
     @State private var dragging: AppItem?
-    @State private var launchAtLogin: Bool = false
     @State private var shake: CGFloat = 0
 
     /// Transparent space ABOVE the bar so the hover name label can rise above the
@@ -29,7 +27,6 @@ struct DockBarView: View {
     var body: some View {
         Group {
             if prefs.axis == .horizontal {
-                // Reserve room above the bar for the hover name bubble.
                 VStack(spacing: 0) {
                     Color.clear.frame(height: Self.labelRoom)
                     bar
@@ -54,13 +51,13 @@ struct DockBarView: View {
 
     private var bar: some View {
         let layout = prefs.axis == .horizontal
-            ? AnyLayout(HStackLayout(spacing: 8))
-            : AnyLayout(VStackLayout(spacing: 8))
+            ? AnyLayout(HStackLayout(spacing: CGFloat(prefs.spacing)))
+            : AnyLayout(VStackLayout(spacing: CGFloat(prefs.spacing)))
         return layout {
             ForEach(store.items) { item in
                 DockIconView(
                     item: item,
-                    size: prefs.iconSize.points,
+                    size: CGFloat(prefs.iconSize),
                     axis: prefs.axis,
                     switcher: switcher,
                     feedback: feedback,
@@ -79,21 +76,22 @@ struct DockBarView: View {
                     )
                 )
             }
-            addButton
+            if prefs.showAddButton { addButton }
         }
-        .padding(10)
+        .padding(CGFloat(prefs.padding))
         // The drag/menu layer is the ENTIRE bar background (incl. the padding margin),
         // behind the icons: dragging any empty spot moves the window, right-click opens
         // settings. Icons in front consume their own taps/drags.
         .background {
             ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
+                RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
+                    .fill(.regularMaterial)
+                    .opacity(prefs.backgroundOpacity)
                 WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow)
                     .contextMenu { settingsMenu }
             }
         }
         .modifier(Shake(animatableData: shake))
-        .onAppear { launchAtLogin = loginItem.isEnabled }
     }
 
     private var sizeReporter: some View {
@@ -134,41 +132,10 @@ struct DockBarView: View {
                 }
             }
         }
+        Button("添加文件 / 应用…") { openPicker() }
         Button("添加网址…") { promptAddURL() }
         Divider()
-        Menu("方向") {
-            Button {
-                prefs.axis = .horizontal
-            } label: {
-                Label("横向", systemImage: prefs.axis == .horizontal ? "checkmark" : "")
-            }
-            Button {
-                prefs.axis = .vertical
-            } label: {
-                Label("竖向", systemImage: prefs.axis == .vertical ? "checkmark" : "")
-            }
-        }
-        Menu("图标大小") {
-            ForEach(IconSize.allCases, id: \.self) { size in
-                Button {
-                    prefs.iconSize = size
-                } label: {
-                    Label(label(for: size), systemImage: prefs.iconSize == size ? "checkmark" : "")
-                }
-            }
-        }
-        Button {
-            prefs.alwaysOnTop.toggle()
-            onAlwaysOnTopChange(prefs.alwaysOnTop)
-        } label: {
-            Label("窗口置顶", systemImage: prefs.alwaysOnTop ? "checkmark" : "")
-        }
-        Button {
-            toggleLaunchAtLogin()
-        } label: {
-            Label("开机自启", systemImage: launchAtLogin ? "checkmark" : "")
-        }
-        Divider()
+        Button("设置…") { onOpenSettings() }
         Button("退出 quickSwitch") { NSApp.terminate(nil) }
     }
 
@@ -185,29 +152,11 @@ struct DockBarView: View {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    private func label(for size: IconSize) -> String {
-        switch size {
-        case .small: return "小"
-        case .medium: return "中"
-        case .large: return "大"
-        }
-    }
-
-    private func toggleLaunchAtLogin() {
-        let next = !launchAtLogin
-        do {
-            try loginItem.setEnabled(next)
-            launchAtLogin = next
-        } catch {
-            NSSound.beep()
-        }
-    }
-
     private var addButton: some View {
         Button(action: openPicker) {
             Image(systemName: "plus")
-                .font(.system(size: prefs.iconSize.points * 0.5, weight: .semibold))
-                .frame(width: prefs.iconSize.points, height: prefs.iconSize.points)
+                .font(.system(size: CGFloat(prefs.iconSize) * 0.5, weight: .semibold))
+                .frame(width: CGFloat(prefs.iconSize), height: CGFloat(prefs.iconSize))
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
@@ -218,8 +167,8 @@ struct DockBarView: View {
         let panel = NSOpenPanel()
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = true // allow folders
-        panel.canChooseFiles = true       // allow apps and any file
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
         if panel.runModal() == .OK {
             for url in panel.urls {
                 addItem(from: url, resolver: resolver, store: store, feedback: feedback)
@@ -305,7 +254,7 @@ private struct IconDropDelegate: DropDelegate {
             }
             return true
         }
-        dragging = nil // internal reorder already applied in dropEntered
+        dragging = nil
         return true
     }
 }

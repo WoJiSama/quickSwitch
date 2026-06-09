@@ -15,40 +15,53 @@ final class PreferencesStoreTests {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    @Test func defaultsAreMediumAndAlwaysOnTop() {
+    @Test func defaultsAreSensible() {
         let prefs = PreferencesStore(defaults: defaults)
-        #expect(prefs.iconSize == .medium)
+        #expect(prefs.iconSize == PreferencesStore.Default.iconSize)
+        #expect(prefs.cornerRadius == PreferencesStore.Default.cornerRadius)
+        #expect(prefs.backgroundOpacity == PreferencesStore.Default.backgroundOpacity)
+        #expect(prefs.spacing == PreferencesStore.Default.spacing)
+        #expect(prefs.padding == PreferencesStore.Default.padding)
+        #expect(prefs.showAddButton)
         #expect(prefs.alwaysOnTop)
+        #expect(prefs.axis == .horizontal)
     }
 
-    @Test func iconSizePersists() {
-        let prefs1 = PreferencesStore(defaults: defaults)
-        prefs1.iconSize = .large
+    @Test func stylePersistsAcrossInstances() {
+        let p1 = PreferencesStore(defaults: defaults)
+        p1.iconSize = 56
+        p1.cornerRadius = 4
+        p1.backgroundOpacity = 0.5
+        p1.spacing = 14
+        p1.padding = 6
+        p1.showAddButton = false
+        p1.axis = .vertical
 
-        let prefs2 = PreferencesStore(defaults: defaults)
-        #expect(prefs2.iconSize == .large)
+        let p2 = PreferencesStore(defaults: defaults)
+        #expect(p2.iconSize == 56)
+        #expect(p2.cornerRadius == 4)
+        #expect(p2.backgroundOpacity == 0.5)
+        #expect(p2.spacing == 14)
+        #expect(p2.padding == 6)
+        #expect(p2.showAddButton == false)
+        #expect(p2.axis == .vertical)
     }
 
-    @Test func alwaysOnTopPersists() {
-        let prefs1 = PreferencesStore(defaults: defaults)
-        prefs1.alwaysOnTop = false
-
-        let prefs2 = PreferencesStore(defaults: defaults)
-        #expect(prefs2.alwaysOnTop == false)
+    @Test func resetStyleRestoresDefaults() {
+        let prefs = PreferencesStore(defaults: defaults)
+        prefs.iconSize = 70
+        prefs.cornerRadius = 2
+        prefs.showAddButton = false
+        prefs.resetStyle()
+        #expect(prefs.iconSize == PreferencesStore.Default.iconSize)
+        #expect(prefs.cornerRadius == PreferencesStore.Default.cornerRadius)
+        #expect(prefs.showAddButton)
     }
 
-    @Test func iconSizePointsIncreaseWithSize() {
-        #expect(IconSize.small.points < IconSize.medium.points)
-        #expect(IconSize.medium.points < IconSize.large.points)
-    }
-
-    @Test func axisDefaultsToHorizontal() {
-        #expect(PreferencesStore(defaults: defaults).axis == .horizontal)
-    }
-
-    @Test func axisPersists() {
-        let prefs1 = PreferencesStore(defaults: defaults)
-        prefs1.axis = .vertical
-        #expect(PreferencesStore(defaults: defaults).axis == .vertical)
+    @Test func legacyStringValueDoesNotCorruptIconSize() {
+        // Older builds stored iconSize as a string ("medium"); it must fall back to the default.
+        defaults.set("medium", forKey: "iconSize")
+        let prefs = PreferencesStore(defaults: defaults)
+        #expect(prefs.iconSize == PreferencesStore.Default.iconSize)
     }
 }
