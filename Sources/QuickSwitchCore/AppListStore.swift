@@ -32,6 +32,14 @@ public final class AppListStore: ObservableObject {
         persist()
     }
 
+    /// Replace an entry's display name (keeping its target/id). Ignores blank names.
+    public func rename(id: String, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index] = AppItem(target: items[index].target, displayName: trimmed)
+        persist()
+    }
+
     public func move(fromOffsets source: IndexSet, toOffset destination: Int) {
         // Mirrors SwiftUI's MutableCollection.move(fromOffsets:toOffset:) without
         // depending on SwiftUI (which this pure-logic target does not link).

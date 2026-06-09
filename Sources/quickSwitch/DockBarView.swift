@@ -52,6 +52,7 @@ struct DockBarView: View {
                     size: prefs.iconSize.points,
                     switcher: switcher,
                     feedback: feedback,
+                    onRename: { store.rename(id: item.id, to: $0) },
                     onRemove: { store.remove(id: item.id) }
                 )
                 .onDrag {

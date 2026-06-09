@@ -10,6 +10,7 @@ struct DockIconView: View {
     let size: CGFloat
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
+    let onRename: (String) -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
@@ -61,9 +62,27 @@ struct DockIconView: View {
                 if feedback.event == .duplicate(item.id) { triggerDuplicate() }
             }
             .contextMenu {
+                Button("重命名…") { promptRename() }
                 Button("移除 \(item.displayName)", role: .destructive) { onRemove() }
             }
             .zIndex(isHovering ? 1 : 0)
+    }
+
+    private func promptRename() {
+        let alert = NSAlert()
+        alert.messageText = "重命名"
+        alert.informativeText = "给这个项目起一个显示名称。"
+        alert.addButton(withTitle: "保存")
+        alert.addButton(withTitle: "取消")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = item.displayName
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        onRename(field.stringValue)
     }
 
     private func triggerFail() {

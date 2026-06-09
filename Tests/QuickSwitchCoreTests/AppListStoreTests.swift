@@ -49,6 +49,21 @@ final class AppListStoreTests {
         #expect(store.items.map(\.id) == ["b"])
     }
 
+    @Test func renameChangesDisplayNameKeepingID() {
+        let store = AppListStore(defaults: defaults)
+        store.add(AppItem(url: "https://x.com/page", displayName: "x.com"))
+        store.rename(id: "https://x.com/page", to: "My Page")
+        #expect(store.items.first?.displayName == "My Page")
+        #expect(store.items.first?.id == "https://x.com/page")
+    }
+
+    @Test func renameIgnoresBlankName() {
+        let store = AppListStore(defaults: defaults)
+        store.add(item("a"))
+        store.rename(id: "a", to: "   ")
+        #expect(store.items.first?.displayName == "A")
+    }
+
     @Test func moveReordersItems() {
         let store = AppListStore(defaults: defaults)
         store.add(item("a"))
