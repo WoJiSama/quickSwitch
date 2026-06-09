@@ -56,39 +56,42 @@ struct DockBarView: View {
         let layout = prefs.axis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(spacing: 8))
-        return ZStack {
-            // Background drag/menu layer: dragging empty space moves the window,
-            // right-clicking it opens settings. Icons in front handle their own drags.
-            WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow)
-                .contextMenu { settingsMenu }
-            layout {
-                ForEach(store.items) { item in
-                    DockIconView(
-                        item: item,
-                        size: prefs.iconSize.points,
-                        axis: prefs.axis,
-                        switcher: switcher,
-                        feedback: feedback,
-                        onRename: { store.rename(id: item.id, to: $0) },
-                        onRemove: { store.remove(id: item.id) }
-                    )
-                    .onDrag {
-                        dragging = item
-                        return NSItemProvider(object: item.id as NSString)
-                    }
-                    .onDrop(
-                        of: [UTType.fileURL, UTType.url, UTType.text],
-                        delegate: IconDropDelegate(
-                            target: item, store: store, resolver: resolver,
-                            feedback: feedback, dragging: $dragging
-                        )
-                    )
+        return layout {
+            ForEach(store.items) { item in
+                DockIconView(
+                    item: item,
+                    size: prefs.iconSize.points,
+                    axis: prefs.axis,
+                    switcher: switcher,
+                    feedback: feedback,
+                    onRename: { store.rename(id: item.id, to: $0) },
+                    onRemove: { store.remove(id: item.id) }
+                )
+                .onDrag {
+                    dragging = item
+                    return NSItemProvider(object: item.id as NSString)
                 }
-                addButton
+                .onDrop(
+                    of: [UTType.fileURL, UTType.url, UTType.text],
+                    delegate: IconDropDelegate(
+                        target: item, store: store, resolver: resolver,
+                        feedback: feedback, dragging: $dragging
+                    )
+                )
             }
+            addButton
         }
         .padding(10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        // The drag/menu layer is the ENTIRE bar background (incl. the padding margin),
+        // behind the icons: dragging any empty spot moves the window, right-click opens
+        // settings. Icons in front consume their own taps/drags.
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
+                WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow)
+                    .contextMenu { settingsMenu }
+            }
+        }
         .modifier(Shake(animatableData: shake))
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
