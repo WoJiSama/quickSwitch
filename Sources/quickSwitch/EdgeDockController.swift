@@ -18,6 +18,7 @@ final class EdgeDockController {
     private var revealed = true
     private var mouseWasDown = false
     private var downOrigin: NSPoint = .zero
+    private var downOnWindow = false
     private var didDrag = false
     private var lastInsideAt: TimeInterval = 0
 
@@ -59,15 +60,28 @@ final class EdgeDockController {
             mouseWasDown = true
             downOrigin = panel.frame.origin
             didDrag = false
+            downOnWindow = panel.frame.contains(mouse) // grabbed the bar itself vs. an external drag
         }
 
         if down {
-            let moved = abs(panel.frame.origin.x - downOrigin.x) + abs(panel.frame.origin.y - downOrigin.y)
-            if moved > dragSlop {
-                didDrag = true
-                if mode != .floating {        // pulled off the edge → let it follow the cursor
-                    mode = .floating
-                    revealed = true
+            if downOnWindow {
+                // User is dragging the bar itself; moving it off the edge un-docks it.
+                let moved = abs(panel.frame.origin.x - downOrigin.x) + abs(panel.frame.origin.y - downOrigin.y)
+                if moved > dragSlop {
+                    didDrag = true
+                    if mode != .floating {
+                        mode = .floating
+                        revealed = true
+                    }
+                }
+            } else if mode != .floating {
+                // An external drag-and-drop is in progress (e.g. from the Dock/Finder).
+                // If it approaches the docked edge, slide out so the user can drop onto the bar.
+                let near = revealZoneContains(mouse, screen: screen)
+                    || panel.frame.insetBy(dx: -2, dy: -2).contains(mouse)
+                if near {
+                    lastInsideAt = now()
+                    if !revealed { revealed = true; applyDockedFrame(animated: true) }
                 }
             }
             return
