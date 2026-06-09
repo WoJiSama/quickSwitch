@@ -44,6 +44,20 @@ final class DockPanel: NSPanel {
         level = on ? .floating : .normal
     }
 
+    /// Keep the window fully visible vertically (so the hover label room above the
+    /// bar never clips off the top), while allowing horizontal off-screen travel
+    /// for edge-docking. Deliberately does NOT call super (which would also pull
+    /// the window back horizontally and fight the dock-hide).
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        guard let visible = (screen ?? self.screen ?? NSScreen.main)?.visibleFrame else {
+            return frameRect
+        }
+        var rect = frameRect
+        if rect.maxY > visible.maxY { rect.origin.y = visible.maxY - rect.height }
+        if rect.minY < visible.minY { rect.origin.y = visible.minY }
+        return rect
+    }
+
     /// Resize the window to match the SwiftUI content. Keeps the visible top edge
     /// stable, recenters once on first layout, and re-anchors when docked.
     func applyContentSize(_ size: CGSize) {

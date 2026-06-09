@@ -26,7 +26,7 @@ struct DockIconView: View {
             .overlay(alignment: .center) {
                 if isHovering {
                     nameLabel
-                        .offset(y: (size / 2) + 16)
+                        .offset(y: -(size / 2) - 16)
                         .transition(.opacity)
                 }
             }

@@ -15,23 +15,22 @@ struct DockBarView: View {
     @State private var dragging: AppItem?
     @State private var launchAtLogin: Bool = false
 
-    /// Transparent space BELOW the bar so the hover name label has room to drop
-    /// down without being clipped by the screen top (the bar lives up high).
-    private static let labelRoom: CGFloat = 28
+    /// Transparent space ABOVE the bar so the hover name label can rise above the
+    /// icons. DockPanel clamps the window within the screen so this never clips.
+    private static let labelRoom: CGFloat = 30
 
     /// Drop types we accept for ADDING an entry (apps/files/folders + web links).
     private static let addTypes: [UTType] = [.fileURL, .url]
 
     var body: some View {
         VStack(spacing: 0) {
-            bar
             Color.clear.frame(height: Self.labelRoom)
+            bar
         }
         .fixedSize()
         .contentShape(Rectangle())
         // Whole-window drop target — covers the bar AND the transparent label
-        // area below it, so an app/file/folder/link dropped anywhere lands
-        // (e.g. dragged up from the Dock, entering via the lower region).
+        // area, so an app/file/folder/link dropped anywhere lands.
         .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
             addItems(from: providers, resolver: resolver, store: store)
         }
