@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let loginItem = LoginItemManager()
     private let hoverName = HoverNameController()
     private lazy var settings = SettingsWindowController(prefs: prefs, loginItem: loginItem)
+    private let help = HelpWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let root = DockBarView(
@@ -27,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowOrigin: { [weak self] in self?.panel?.frame.origin ?? .zero },
             moveWindow: { [weak self] origin in self?.panel?.setFrameOrigin(origin) },
             onOpenSettings: { [weak self] in self?.settings.show() },
+            onOpenHelp: { [weak self] in self?.help.show() },
             showHoverName: { [weak self] name in
                 if let name { self?.hoverName.show(name) } else { self?.hoverName.hide() }
             }

@@ -13,6 +13,7 @@ struct DockBarView: View {
     let windowOrigin: () -> CGPoint
     let moveWindow: (CGPoint) -> Void
     let onOpenSettings: () -> Void
+    let onOpenHelp: () -> Void
     let showHoverName: (String?) -> Void
 
     @State private var dragging: AppItem?
@@ -124,6 +125,7 @@ struct DockBarView: View {
         Button("添加网址…") { promptAddURL() }
         Divider()
         Button("设置…") { onOpenSettings() }
+        Button("使用教程") { onOpenHelp() }
         Button("退出 quickSwitch") { NSApp.terminate(nil) }
     }
 
