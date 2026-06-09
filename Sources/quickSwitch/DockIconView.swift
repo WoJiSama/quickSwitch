@@ -8,6 +8,7 @@ import QuickSwitchCore
 struct DockIconView: View {
     let item: AppItem
     let size: CGFloat
+    let axis: DockAxis
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
     let onRename: (String) -> Void
@@ -41,12 +42,16 @@ struct DockIconView: View {
                     .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
             }
             .overlay(alignment: .center) {
-                if isHovering {
+                // Horizontal: a custom name bubble above the icon (with room reserved
+                // by DockBarView). Vertical: fall back to the native tooltip (see .help
+                // below) which the system positions and never clips.
+                if isHovering && axis == .horizontal {
                     nameLabel
                         .offset(y: -(size / 2) - 16)
                         .transition(.opacity)
                 }
             }
+            .help(axis == .vertical ? item.displayName : "")
             .contentShape(Rectangle())
             .onHover { hovering in
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.62)) {

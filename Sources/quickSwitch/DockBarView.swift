@@ -25,13 +25,19 @@ struct DockBarView: View {
     private static let addTypes: [UTType] = [.fileURL, .url]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Color.clear.frame(height: Self.labelRoom)
-            bar
+        Group {
+            if prefs.axis == .horizontal {
+                // Reserve room above the bar for the hover name bubble.
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: Self.labelRoom)
+                    bar
+                }
+            } else {
+                bar
+            }
         }
         .fixedSize()
         .contentShape(Rectangle())
-        // Whole-window drop target — covers the bar AND the transparent label area.
         .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
             addDroppedItems(providers)
         }
@@ -45,11 +51,15 @@ struct DockBarView: View {
     }
 
     private var bar: some View {
-        HStack(spacing: 8) {
+        let layout = prefs.axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(spacing: 8))
+        return layout {
             ForEach(store.items) { item in
                 DockIconView(
                     item: item,
                     size: prefs.iconSize.points,
+                    axis: prefs.axis,
                     switcher: switcher,
                     feedback: feedback,
                     onRename: { store.rename(id: item.id, to: $0) },
@@ -117,6 +127,18 @@ struct DockBarView: View {
         }
         Button("添加网址…") { promptAddURL() }
         Divider()
+        Menu("方向") {
+            Button {
+                prefs.axis = .horizontal
+            } label: {
+                Label("横向", systemImage: prefs.axis == .horizontal ? "checkmark" : "")
+            }
+            Button {
+                prefs.axis = .vertical
+            } label: {
+                Label("竖向", systemImage: prefs.axis == .vertical ? "checkmark" : "")
+            }
+        }
         Menu("图标大小") {
             ForEach(IconSize.allCases, id: \.self) { size in
                 Button {

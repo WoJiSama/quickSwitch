@@ -41,4 +41,14 @@ final class PreferencesStoreTests {
         #expect(IconSize.small.points < IconSize.medium.points)
         #expect(IconSize.medium.points < IconSize.large.points)
     }
+
+    @Test func axisDefaultsToHorizontal() {
+        #expect(PreferencesStore(defaults: defaults).axis == .horizontal)
+    }
+
+    @Test func axisPersists() {
+        let prefs1 = PreferencesStore(defaults: defaults)
+        prefs1.axis = .vertical
+        #expect(PreferencesStore(defaults: defaults).axis == .vertical)
+    }
 }
