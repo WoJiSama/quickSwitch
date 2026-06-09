@@ -25,7 +25,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.panel?.applyContentSize(size)
             }
         )
-        panel = DockPanel(rootView: root, alwaysOnTop: prefs.alwaysOnTop)
+        panel = DockPanel(
+            rootView: root,
+            alwaysOnTop: prefs.alwaysOnTop,
+            onDropURLs: { [weak self] urls in
+                guard let self else { return false }
+                var added = false
+                for url in urls {
+                    if let item = self.resolver.resolve(url: url) {
+                        self.appList.add(item)
+                        added = true
+                    }
+                }
+                return added
+            }
+        )
         panel?.showCentered()
     }
 }

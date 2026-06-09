@@ -75,6 +75,14 @@ struct DockBarView: View {
     }
 
     @ViewBuilder private var settingsMenu: some View {
+        Menu("添加正在运行的应用") {
+            ForEach(runningApps(), id: \.bundleID) { app in
+                Button(app.name) {
+                    store.add(AppItem(bundleID: app.bundleID, displayName: app.name))
+                }
+            }
+        }
+        Divider()
         Menu("图标大小") {
             ForEach(IconSize.allCases, id: \.self) { size in
                 Button {
@@ -97,6 +105,19 @@ struct DockBarView: View {
         }
         Divider()
         Button("退出 quickSwitch") { NSApp.terminate(nil) }
+    }
+
+    /// Currently-running, user-facing apps — a reliable way to add what's in the Dock
+    /// without fighting the Dock's non-standard drag source.
+    private func runningApps() -> [(bundleID: String, name: String)] {
+        var seen = Set<String>()
+        return NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { app -> (bundleID: String, name: String)? in
+                guard let bundleID = app.bundleIdentifier, seen.insert(bundleID).inserted else { return nil }
+                return (bundleID, app.localizedName ?? bundleID)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private func label(for size: IconSize) -> String {

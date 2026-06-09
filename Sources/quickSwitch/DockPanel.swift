@@ -8,7 +8,7 @@ final class DockPanel: NSPanel {
     private var edgeDock: EdgeDockController?
     private var didInitialSize = false
 
-    init<Content: View>(rootView: Content, alwaysOnTop: Bool) {
+    init<Content: View>(rootView: Content, alwaysOnTop: Bool, onDropURLs: @escaping ([URL]) -> Bool) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 200, height: 96),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -26,7 +26,8 @@ final class DockPanel: NSPanel {
 
         let hosting = NSHostingView(rootView: rootView)
         hosting.translatesAutoresizingMaskIntoConstraints = false
-        let container = NSView()
+        let container = DropReceivingView()
+        container.onDropURLs = onDropURLs
         container.addSubview(hosting)
         NSLayoutConstraint.activate([
             hosting.leadingAnchor.constraint(equalTo: container.leadingAnchor),
