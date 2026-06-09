@@ -6,6 +6,7 @@ public struct AppItem: Equatable, Identifiable, Codable, Sendable {
     public enum Target: Equatable, Codable, Sendable {
         case app(bundleID: String)
         case path(String) // absolute path to a file or folder
+        case url(String)  // web URL (http/https)
     }
 
     public let target: Target
@@ -26,12 +27,18 @@ public struct AppItem: Equatable, Identifiable, Codable, Sendable {
         self.init(target: .path(path), displayName: displayName)
     }
 
-    /// Stable unique key. Bundle ids and absolute paths never collide
-    /// (absolute paths begin with "/").
+    /// Convenience for a web URL entry.
+    public init(url: String, displayName: String) {
+        self.init(target: .url(url), displayName: displayName)
+    }
+
+    /// Stable unique key. Bundle ids, absolute paths and web URLs never collide
+    /// (paths begin with "/", web URLs with "http").
     public var id: String {
         switch target {
         case .app(let bundleID): return bundleID
         case .path(let path): return path
+        case .url(let url): return url
         }
     }
 }

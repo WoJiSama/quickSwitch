@@ -27,6 +27,18 @@ struct AppItemTests {
         #expect(decoded == item)
     }
 
+    @Test func urlIdEqualsURL() {
+        let item = AppItem(url: "https://github.com", displayName: "github.com")
+        #expect(item.id == "https://github.com")
+    }
+
+    @Test func urlCodableRoundTripPreservesValues() throws {
+        let item = AppItem(url: "https://apple.com", displayName: "apple.com")
+        let data = try JSONEncoder().encode(item)
+        let decoded = try JSONDecoder().decode(AppItem.self, from: data)
+        #expect(decoded == item)
+    }
+
     @Test func equalityIsByValue() {
         let a = AppItem(bundleID: "x", displayName: "X")
         let b = AppItem(bundleID: "x", displayName: "X")

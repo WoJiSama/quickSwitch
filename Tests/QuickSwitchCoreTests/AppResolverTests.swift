@@ -43,6 +43,18 @@ struct AppResolverTests {
         #expect(item?.target == .path(url.path))
     }
 
+    @Test func httpURLBecomesWebItem() {
+        let url = URL(string: "https://github.com/anthropics")!
+        let item = AppResolver().resolve(url: url)
+        #expect(item?.target == .url("https://github.com/anthropics"))
+        #expect(item?.displayName == "github.com")
+    }
+
+    @Test func nonWebSchemeReturnsNil() {
+        let url = URL(string: "ftp://example.com/file")!
+        #expect(AppResolver().resolve(url: url) == nil)
+    }
+
     @Test func unreadableBundleReturnsNil() {
         let resolver = AppResolver(reader: StubReader(result: nil))
         #expect(resolver.resolve(url: URL(fileURLWithPath: "/Applications/Broken.app")) == nil)

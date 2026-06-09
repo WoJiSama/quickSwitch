@@ -19,12 +19,22 @@ struct DockBarView: View {
     /// down without being clipped by the screen top (the bar lives up high).
     private static let labelRoom: CGFloat = 28
 
+    /// Drop types we accept for ADDING an entry (apps/files/folders + web links).
+    private static let addTypes: [UTType] = [.fileURL, .url]
+
     var body: some View {
         VStack(spacing: 0) {
             bar
             Color.clear.frame(height: Self.labelRoom)
         }
         .fixedSize()
+        .contentShape(Rectangle())
+        // Whole-window drop target — covers the bar AND the transparent label
+        // area below it, so an app/file/folder/link dropped anywhere lands
+        // (e.g. dragged up from the Dock, entering via the lower region).
+        .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
+            addItems(from: providers, resolver: resolver, store: store)
+        }
         .background(sizeReporter)
         .onPreferenceChange(BarSizeKey.self) { onResize($0) }
     }
@@ -42,11 +52,10 @@ struct DockBarView: View {
                     dragging = item
                     return NSItemProvider(object: item.id as NSString)
                 }
-                // Each icon accepts BOTH an external .app drop (add) and an
-                // internal icon drag (reorder), so dropping an app anywhere on
-                // the bar works — the icons no longer shadow the add target.
+                // Each icon accepts an external add (app/file/folder/link) and an
+                // internal icon drag (reorder), so dropping anywhere on the bar works.
                 .onDrop(
-                    of: [UTType.fileURL, UTType.text],
+                    of: [UTType.fileURL, UTType.url, UTType.text],
                     delegate: IconDropDelegate(target: item, store: store, resolver: resolver, dragging: $dragging)
                 )
             }
@@ -56,10 +65,6 @@ struct DockBarView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .contentShape(RoundedRectangle(cornerRadius: 18))
         .contextMenu { settingsMenu }
-        // Fallback target for drops landing on the bar's padding / gaps.
-        .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-            addApps(from: providers, resolver: resolver, store: store)
-        }
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
 
@@ -142,14 +147,22 @@ private struct BarSizeKey: PreferenceKey {
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
 }
 
-/// Loads dropped `.app` URLs, resolves each to an AppItem, and adds it on the main actor.
-/// Shared by the per-icon drop delegate and the bar's fallback drop target.
+/// Loads dropped file/web URLs, resolves each to an AppItem, and adds it on the
+/// main actor. Shared by the per-icon drop delegate and the window drop target.
 @discardableResult
-private func addApps(from providers: [NSItemProvider], resolver: AppResolver, store: AppListStore) -> Bool {
+private func addItems(from providers: [NSItemProvider], resolver: AppResolver, store: AppListStore) -> Bool {
     var accepted = false
-    for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+    for provider in providers {
+        let typeID: String
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            typeID = UTType.fileURL.identifier
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            typeID = UTType.url.identifier
+        } else {
+            continue
+        }
         accepted = true
-        provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+        provider.loadDataRepresentation(forTypeIdentifier: typeID) { data, _ in
             guard let data,
                   let url = URL(dataRepresentation: data, relativeTo: nil),
                   let item = resolver.resolve(url: url)
@@ -160,8 +173,8 @@ private func addApps(from providers: [NSItemProvider], resolver: AppResolver, st
     return accepted
 }
 
-/// Handles drops on a specific icon: an external `.app` adds it; an internal
-/// icon drag reorders the list live as it passes over this icon.
+/// Handles drops on a specific icon: an external app/file/folder/link adds it;
+/// an internal icon drag reorders the list live as it passes over this icon.
 private struct IconDropDelegate: DropDelegate {
     let target: AppItem
     let store: AppListStore
@@ -169,7 +182,7 @@ private struct IconDropDelegate: DropDelegate {
     @Binding var dragging: AppItem?
 
     func validateDrop(info: DropInfo) -> Bool {
-        dragging != nil || info.hasItemsConforming(to: [UTType.fileURL])
+        dragging != nil || info.hasItemsConforming(to: [UTType.fileURL, UTType.url])
     }
 
     func dropEntered(info: DropInfo) {
@@ -185,10 +198,10 @@ private struct IconDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        let fileProviders = info.itemProviders(for: [UTType.fileURL])
-        if !fileProviders.isEmpty {
+        let providers = info.itemProviders(for: [UTType.fileURL, UTType.url])
+        if !providers.isEmpty {
             dragging = nil
-            return addApps(from: fileProviders, resolver: resolver, store: store)
+            return addItems(from: providers, resolver: resolver, store: store)
         }
         dragging = nil // internal reorder already applied in dropEntered
         return true

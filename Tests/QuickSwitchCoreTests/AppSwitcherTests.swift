@@ -7,9 +7,11 @@ struct AppSwitcherTests {
         var activateReturn = true
         var launchReturn = true
         var openReturn = true
+        var webReturn = true
         private(set) var activatedIDs: [String] = []
         private(set) var launchedIDs: [String] = []
         private(set) var openedPaths: [String] = []
+        private(set) var openedWebURLs: [String] = []
 
         func isRunning(bundleID: String) -> Bool { running.contains(bundleID) }
         func activate(bundleID: String) -> Bool {
@@ -20,6 +22,9 @@ struct AppSwitcherTests {
         }
         func open(path: String) -> Bool {
             openedPaths.append(path); return openReturn
+        }
+        func openWeb(_ urlString: String) -> Bool {
+            openedWebURLs.append(urlString); return webReturn
         }
     }
 
@@ -95,6 +100,29 @@ struct AppSwitcherTests {
 
         var result: AppSwitcher.SwitchResult?
         switcher.open(AppItem(path: "/tmp/gone", displayName: "gone")) { result = $0 }
+
+        #expect(result == .failed)
+    }
+
+    @Test func urlItemOpensInBrowser() {
+        let mock = MockWorkspace()
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(url: "https://github.com", displayName: "github.com")) { result = $0 }
+
+        #expect(result == .opened)
+        #expect(mock.openedWebURLs == ["https://github.com"])
+        #expect(mock.openedPaths.isEmpty)
+    }
+
+    @Test func urlOpenFailsReturnsFailed() {
+        let mock = MockWorkspace()
+        mock.webReturn = false
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(url: "https://x.test", displayName: "x")) { result = $0 }
 
         #expect(result == .failed)
     }

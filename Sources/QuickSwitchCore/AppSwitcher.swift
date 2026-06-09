@@ -28,6 +28,8 @@ public struct AppSwitcher {
             }
         case .path(let path):
             completion(workspace.open(path: path) ? .opened : .failed)
+        case .url(let urlString):
+            completion(workspace.openWeb(urlString) ? .opened : .failed)
         }
     }
 }

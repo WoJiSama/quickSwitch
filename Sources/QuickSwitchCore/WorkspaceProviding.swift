@@ -7,6 +7,8 @@ public protocol WorkspaceProviding {
     func launch(bundleID: String, completion: @escaping (Bool) -> Void)
     /// Open a file or folder with its default handler. Returns whether it opened.
     func open(path: String) -> Bool
+    /// Open a web URL in the default browser. Returns whether it opened.
+    func openWeb(_ urlString: String) -> Bool
 }
 
 /// Production implementation backed by NSWorkspace / NSRunningApplication.
@@ -41,5 +43,10 @@ public struct SystemWorkspace: WorkspaceProviding {
 
     public func open(path: String) -> Bool {
         NSWorkspace.shared.open(URL(fileURLWithPath: path))
+    }
+
+    public func openWeb(_ urlString: String) -> Bool {
+        guard let url = URL(string: urlString) else { return false }
+        return NSWorkspace.shared.open(url)
     }
 }
