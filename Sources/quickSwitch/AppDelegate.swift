@@ -9,13 +9,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let prefs = PreferencesStore()
     private let switcher = AppSwitcher(workspace: SystemWorkspace())
     private let resolver = AppResolver()
+    private let loginItem = LoginItemManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let root = DockBarView(
             store: appList,
             prefs: prefs,
             switcher: switcher,
-            resolver: resolver
+            resolver: resolver,
+            loginItem: loginItem,
+            onAlwaysOnTopChange: { [weak self] on in
+                self?.panel?.setAlwaysOnTop(on)
+            }
         )
         panel = DockPanel(rootView: root, alwaysOnTop: prefs.alwaysOnTop)
         panel?.showCentered()

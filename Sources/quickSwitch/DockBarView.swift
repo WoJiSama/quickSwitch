@@ -8,8 +8,11 @@ struct DockBarView: View {
     @ObservedObject var prefs: PreferencesStore
     let switcher: AppSwitcher
     let resolver: AppResolver
+    let loginItem: LoginItemControlling
+    let onAlwaysOnTopChange: (Bool) -> Void
 
     @State private var dragging: AppItem?
+    @State private var launchAtLogin: Bool = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -33,8 +36,53 @@ struct DockBarView: View {
         }
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .contextMenu { settingsMenu }
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
             handleAppDrop(providers)
+        }
+        .onAppear { launchAtLogin = loginItem.isEnabled }
+    }
+
+    @ViewBuilder private var settingsMenu: some View {
+        Menu("图标大小") {
+            ForEach(IconSize.allCases, id: \.self) { size in
+                Button {
+                    prefs.iconSize = size
+                } label: {
+                    Label(label(for: size), systemImage: prefs.iconSize == size ? "checkmark" : "")
+                }
+            }
+        }
+        Button {
+            prefs.alwaysOnTop.toggle()
+            onAlwaysOnTopChange(prefs.alwaysOnTop)
+        } label: {
+            Label("窗口置顶", systemImage: prefs.alwaysOnTop ? "checkmark" : "")
+        }
+        Button {
+            toggleLaunchAtLogin()
+        } label: {
+            Label("开机自启", systemImage: launchAtLogin ? "checkmark" : "")
+        }
+        Divider()
+        Button("退出 quickSwitch") { NSApp.terminate(nil) }
+    }
+
+    private func label(for size: IconSize) -> String {
+        switch size {
+        case .small: return "小"
+        case .medium: return "中"
+        case .large: return "大"
+        }
+    }
+
+    private func toggleLaunchAtLogin() {
+        let next = !launchAtLogin
+        do {
+            try loginItem.setEnabled(next)
+            launchAtLogin = next
+        } catch {
+            NSSound.beep()
         }
     }
 
