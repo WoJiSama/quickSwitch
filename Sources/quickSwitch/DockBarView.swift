@@ -51,8 +51,13 @@ struct DockBarView: View {
                     feedback: feedback,
                     onHoverName: showHoverName,
                     onRename: { store.rename(id: item.id, to: $0) },
-                    onRemove: { store.remove(id: item.id) }
+                    onRemove: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                            store.remove(id: item.id)
+                        }
+                    }
                 )
+                .transition(.scale.combined(with: .opacity))
                 .onDrag {
                     dragging = item
                     return NSItemProvider(object: item.id as NSString)
@@ -117,7 +122,9 @@ struct DockBarView: View {
             ForEach(runningApps(), id: \.bundleID) { app in
                 Button(app.name) {
                     let item = AppItem(bundleID: app.bundleID, displayName: app.name)
-                    if store.add(item) == .duplicate { feedback.duplicate(item.id) }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                        if store.add(item) == .duplicate { feedback.duplicate(item.id) }
+                    }
                 }
             }
         }
@@ -221,7 +228,9 @@ private struct IconDropDelegate: DropDelegate {
               let from = store.items.firstIndex(of: dragging),
               let to = store.items.firstIndex(of: target)
         else { return }
-        store.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+            store.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {

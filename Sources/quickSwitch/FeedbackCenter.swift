@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 import QuickSwitchCore
 
 /// Transient UI feedback signals for add attempts:
@@ -34,11 +35,13 @@ func addItem(from url: URL, resolver: AppResolver, store: AppListStore, feedback
         feedback.rejected()
         return false
     }
-    switch store.add(item) {
-    case .added:
-        return true
-    case .duplicate:
+    var outcome: AddOutcome = .added
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+        outcome = store.add(item)
+    }
+    if outcome == .duplicate {
         feedback.duplicate(item.id)
         return false
     }
+    return true
 }
