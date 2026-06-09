@@ -1,11 +1,9 @@
 import Foundation
 
-/// Activates/launches an application entry, or opens a file/folder entry
-/// with its default handler.
+/// Opens a dock entry: an app (activate/launch like the Dock), or a file/folder/web
+/// URL via its default handler.
 public struct AppSwitcher {
     public enum SwitchResult: Equatable {
-        case activated
-        case launched
         case opened
         case failed
     }
@@ -19,13 +17,7 @@ public struct AppSwitcher {
     public func open(_ item: AppItem, completion: @escaping (SwitchResult) -> Void) {
         switch item.target {
         case .app(let bundleID):
-            if workspace.isRunning(bundleID: bundleID) {
-                completion(workspace.activate(bundleID: bundleID) ? .activated : .failed)
-            } else {
-                workspace.launch(bundleID: bundleID) { ok in
-                    completion(ok ? .launched : .failed)
-                }
-            }
+            workspace.openApp(bundleID: bundleID) { completion($0 ? .opened : .failed) }
         case .path(let path):
             completion(workspace.open(path: path) ? .opened : .failed)
         case .url(let urlString):

@@ -3,79 +3,44 @@ import Testing
 
 struct AppSwitcherTests {
     final class MockWorkspace: WorkspaceProviding {
-        var running: Set<String> = []
-        var activateReturn = true
-        var launchReturn = true
-        var openReturn = true
+        var appReturn = true
+        var pathReturn = true
         var webReturn = true
-        private(set) var activatedIDs: [String] = []
-        private(set) var launchedIDs: [String] = []
+        private(set) var openedApps: [String] = []
         private(set) var openedPaths: [String] = []
         private(set) var openedWebURLs: [String] = []
 
-        func isRunning(bundleID: String) -> Bool { running.contains(bundleID) }
-        func activate(bundleID: String) -> Bool {
-            activatedIDs.append(bundleID); return activateReturn
-        }
-        func launch(bundleID: String, completion: @escaping (Bool) -> Void) {
-            launchedIDs.append(bundleID); completion(launchReturn)
+        func openApp(bundleID: String, completion: @escaping (Bool) -> Void) {
+            openedApps.append(bundleID); completion(appReturn)
         }
         func open(path: String) -> Bool {
-            openedPaths.append(path); return openReturn
+            openedPaths.append(path); return pathReturn
         }
         func openWeb(_ urlString: String) -> Bool {
             openedWebURLs.append(urlString); return webReturn
         }
     }
 
-    private func app(_ bundleID: String) -> AppItem {
-        AppItem(bundleID: bundleID, displayName: bundleID)
-    }
-
-    @Test func runningAppActivatesAndDoesNotLaunch() {
-        let mock = MockWorkspace()
-        mock.running = ["com.foo.Bar"]
-        let switcher = AppSwitcher(workspace: mock)
-
-        var result: AppSwitcher.SwitchResult?
-        switcher.open(app("com.foo.Bar")) { result = $0 }
-
-        #expect(result == .activated)
-        #expect(mock.activatedIDs == ["com.foo.Bar"])
-        #expect(mock.launchedIDs.isEmpty)
-    }
-
-    @Test func notRunningAppLaunches() {
+    @Test func appItemOpens() {
         let mock = MockWorkspace()
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.open(app("com.foo.Bar")) { result = $0 }
+        switcher.open(AppItem(bundleID: "com.foo.Bar", displayName: "Bar")) { result = $0 }
 
-        #expect(result == .launched)
-        #expect(mock.launchedIDs == ["com.foo.Bar"])
-        #expect(mock.activatedIDs.isEmpty)
+        #expect(result == .opened)
+        #expect(mock.openedApps == ["com.foo.Bar"])
+        #expect(mock.openedPaths.isEmpty)
+        #expect(mock.openedWebURLs.isEmpty)
     }
 
-    @Test func activateFailsReturnsFailed() {
+    @Test func appOpenFailureReturnsFailed() {
         let mock = MockWorkspace()
-        mock.running = ["com.foo.Bar"]
-        mock.activateReturn = false
+        mock.appReturn = false
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
-        switcher.open(app("com.foo.Bar")) { result = $0 }
-
-        #expect(result == .failed)
-    }
-
-    @Test func launchFailsReturnsFailed() {
-        let mock = MockWorkspace()
-        mock.launchReturn = false
-        let switcher = AppSwitcher(workspace: mock)
-
-        var result: AppSwitcher.SwitchResult?
-        switcher.open(app("com.foo.Bar")) { result = $0 }
+        switcher.open(AppItem(bundleID: "com.foo.Bar", displayName: "Bar")) { result = $0 }
 
         #expect(result == .failed)
     }
@@ -89,13 +54,12 @@ struct AppSwitcherTests {
 
         #expect(result == .opened)
         #expect(mock.openedPaths == ["/tmp/notes.txt"])
-        #expect(mock.activatedIDs.isEmpty)
-        #expect(mock.launchedIDs.isEmpty)
+        #expect(mock.openedApps.isEmpty)
     }
 
-    @Test func pathOpenFailsReturnsFailed() {
+    @Test func pathOpenFailureReturnsFailed() {
         let mock = MockWorkspace()
-        mock.openReturn = false
+        mock.pathReturn = false
         let switcher = AppSwitcher(workspace: mock)
 
         var result: AppSwitcher.SwitchResult?
@@ -113,10 +77,10 @@ struct AppSwitcherTests {
 
         #expect(result == .opened)
         #expect(mock.openedWebURLs == ["https://github.com"])
-        #expect(mock.openedPaths.isEmpty)
+        #expect(mock.openedApps.isEmpty)
     }
 
-    @Test func urlOpenFailsReturnsFailed() {
+    @Test func urlOpenFailureReturnsFailed() {
         let mock = MockWorkspace()
         mock.webReturn = false
         let switcher = AppSwitcher(workspace: mock)
