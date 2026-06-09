@@ -20,7 +20,9 @@ final class DockPanel: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
-        isMovableByWindowBackground = true
+        // Window moving is handled by WindowDragHandle (the bar's background) so it
+        // doesn't hijack icon reorder-drags. Hence NOT isMovableByWindowBackground.
+        isMovableByWindowBackground = false
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 

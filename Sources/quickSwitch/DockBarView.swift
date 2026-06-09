@@ -54,36 +54,40 @@ struct DockBarView: View {
         let layout = prefs.axis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(spacing: 8))
-        return layout {
-            ForEach(store.items) { item in
-                DockIconView(
-                    item: item,
-                    size: prefs.iconSize.points,
-                    axis: prefs.axis,
-                    switcher: switcher,
-                    feedback: feedback,
-                    onRename: { store.rename(id: item.id, to: $0) },
-                    onRemove: { store.remove(id: item.id) }
-                )
-                .onDrag {
-                    dragging = item
-                    return NSItemProvider(object: item.id as NSString)
-                }
-                .onDrop(
-                    of: [UTType.fileURL, UTType.url, UTType.text],
-                    delegate: IconDropDelegate(
-                        target: item, store: store, resolver: resolver,
-                        feedback: feedback, dragging: $dragging
+        return ZStack {
+            // Background drag/menu layer: dragging empty space moves the window,
+            // right-clicking it opens settings. Icons in front handle their own drags.
+            WindowDragHandle()
+                .contextMenu { settingsMenu }
+            layout {
+                ForEach(store.items) { item in
+                    DockIconView(
+                        item: item,
+                        size: prefs.iconSize.points,
+                        axis: prefs.axis,
+                        switcher: switcher,
+                        feedback: feedback,
+                        onRename: { store.rename(id: item.id, to: $0) },
+                        onRemove: { store.remove(id: item.id) }
                     )
-                )
+                    .onDrag {
+                        dragging = item
+                        return NSItemProvider(object: item.id as NSString)
+                    }
+                    .onDrop(
+                        of: [UTType.fileURL, UTType.url, UTType.text],
+                        delegate: IconDropDelegate(
+                            target: item, store: store, resolver: resolver,
+                            feedback: feedback, dragging: $dragging
+                        )
+                    )
+                }
+                addButton
             }
-            addButton
         }
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .contentShape(RoundedRectangle(cornerRadius: 18))
         .modifier(Shake(animatableData: shake))
-        .contextMenu { settingsMenu }
         .onAppear { launchAtLogin = loginItem.isEnabled }
     }
 
