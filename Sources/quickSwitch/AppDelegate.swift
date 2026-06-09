@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let appList = AppListStore()
     private let prefs = PreferencesStore()
     private let feedback = FeedbackCenter()
+    private let dockState = DockState()
     private let switcher = AppSwitcher(workspace: SystemWorkspace())
     private let resolver = AppResolver()
     private let loginItem = LoginItemManager()
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: appList,
             prefs: prefs,
             feedback: feedback,
+            dockState: dockState,
             switcher: switcher,
             resolver: resolver,
             onResize: { [weak self] size in self?.panel?.applyContentSize(size) },
@@ -52,7 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 return added
             },
-            onEdgeStateChanged: { [weak self] in self?.saveWindowState() }
+            onEdgeStateChanged: { [weak self] in self?.saveWindowState() },
+            onDockStateChanged: { [weak self] mode, revealed in
+                self?.dockState.mode = mode
+                self?.dockState.revealed = revealed
+            }
         )
 
         let saved = savedWindowState()

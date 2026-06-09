@@ -12,7 +12,8 @@ final class DockPanel: NSPanel {
 
     init<Content: View>(rootView: Content, alwaysOnTop: Bool,
                         onDropURLs: @escaping ([URL]) -> Bool,
-                        onEdgeStateChanged: @escaping () -> Void) {
+                        onEdgeStateChanged: @escaping () -> Void,
+                        onDockStateChanged: @escaping (EdgeDockController.Mode, Bool) -> Void) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 200, height: 96),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -45,6 +46,7 @@ final class DockPanel: NSPanel {
 
         let dock = EdgeDockController(panel: self)
         dock.onStateChanged = onEdgeStateChanged
+        dock.onDockStateChanged = onDockStateChanged
         edgeDock = dock
     }
 

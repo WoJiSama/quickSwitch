@@ -7,6 +7,7 @@ struct DockBarView: View {
     @ObservedObject var store: AppListStore
     @ObservedObject var prefs: PreferencesStore
     @ObservedObject var feedback: FeedbackCenter
+    @ObservedObject var dockState: DockState
     let switcher: AppSwitcher
     let resolver: AppResolver
     let onResize: (CGSize) -> Void
@@ -87,7 +88,23 @@ struct DockBarView: View {
                     .contextMenu { settingsMenu }
             }
         }
+        // High-contrast handle on the peeking edge when docked & hidden, so the
+        // sliver stays visible on light backgrounds too.
+        .overlay(alignment: dockState.mode == .left ? .trailing : .leading) {
+            if dockState.mode != .floating && !dockState.revealed {
+                dockHandle
+            }
+        }
         .modifier(Shake(animatableData: shake))
+    }
+
+    private var dockHandle: some View {
+        Capsule()
+            .fill(Color.accentColor)
+            .frame(width: 5, height: max(22, CGFloat(prefs.iconSize) * 0.55))
+            .overlay(Capsule().strokeBorder(.white.opacity(0.7), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.35), radius: 2)
+            .padding(.horizontal, 1)
     }
 
     private var sizeReporter: some View {

@@ -10,16 +10,18 @@ import AppKit
 final class EdgeDockController {
     enum Mode: Equatable { case floating, left, right }
 
-    private(set) var mode: Mode = .floating
+    private(set) var mode: Mode = .floating { didSet { onDockStateChanged?(mode, revealed) } }
 
     /// Called when the dock state settles after a drag (snapped to an edge or back to
     /// floating), so the position/edge can be persisted.
     var onStateChanged: (() -> Void)?
+    /// Called whenever mode or revealed changes, so the UI can show/hide the handle.
+    var onDockStateChanged: ((Mode, Bool) -> Void)?
 
     private weak var panel: NSPanel?
     private var timer: Timer?
 
-    private var revealed = true
+    private var revealed = true { didSet { onDockStateChanged?(mode, revealed) } }
     private var mouseWasDown = false
     private var downOrigin: NSPoint = .zero
     private var downOnWindow = false
@@ -28,7 +30,7 @@ final class EdgeDockController {
 
     // Tunables
     private let snapThreshold: CGFloat = 28   // drop within this of an edge → dock
-    private let sliver: CGFloat = 4           // visible strip when hidden
+    private let sliver: CGFloat = 6           // visible strip when hidden
     private let revealProximity: CGFloat = 8  // cursor within this of the edge → reveal
     private let dragSlop: CGFloat = 6         // movement above this counts as a drag, not a click
     private let hideDelay: TimeInterval = 0.5
