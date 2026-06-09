@@ -15,14 +15,14 @@ struct DockBarView: View {
     @State private var dragging: AppItem?
     @State private var launchAtLogin: Bool = false
 
-    /// Transparent space above the bar so the hover name label and the
-    /// magnified icon have room to draw without being clipped by the window.
-    private static let headroom: CGFloat = 30
+    /// Transparent space BELOW the bar so the hover name label has room to drop
+    /// down without being clipped by the screen top (the bar lives up high).
+    private static let labelRoom: CGFloat = 28
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: Self.headroom)
             bar
+            Color.clear.frame(height: Self.labelRoom)
         }
         .fixedSize()
         .background(sizeReporter)
