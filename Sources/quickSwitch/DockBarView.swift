@@ -13,40 +13,28 @@ struct DockBarView: View {
     let windowOrigin: () -> CGPoint
     let moveWindow: (CGPoint) -> Void
     let onOpenSettings: () -> Void
+    let showHoverName: (String?) -> Void
 
     @State private var dragging: AppItem?
     @State private var shake: CGFloat = 0
-
-    /// Transparent space ABOVE the bar so the hover name label can rise above the
-    /// icons. DockPanel clamps the window within the screen so this never clips.
-    private static let labelRoom: CGFloat = 30
 
     /// Drop types we accept for ADDING an entry (apps/files/folders + web links).
     private static let addTypes: [UTType] = [.fileURL, .url]
 
     var body: some View {
-        Group {
-            if prefs.axis == .horizontal {
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: Self.labelRoom)
-                    bar
+        bar
+            .fixedSize()
+            .contentShape(Rectangle())
+            .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
+                addDroppedItems(providers)
+            }
+            .background(sizeReporter)
+            .onPreferenceChange(BarSizeKey.self) { onResize($0) }
+            .onChange(of: feedback.tick) { _ in
+                if feedback.event == .rejected {
+                    withAnimation(.linear(duration: 0.4)) { shake += 1 }
                 }
-            } else {
-                bar
             }
-        }
-        .fixedSize()
-        .contentShape(Rectangle())
-        .onDrop(of: Self.addTypes, isTargeted: nil) { providers in
-            addDroppedItems(providers)
-        }
-        .background(sizeReporter)
-        .onPreferenceChange(BarSizeKey.self) { onResize($0) }
-        .onChange(of: feedback.tick) { _ in
-            if feedback.event == .rejected {
-                withAnimation(.linear(duration: 0.4)) { shake += 1 }
-            }
-        }
     }
 
     private var bar: some View {
@@ -58,9 +46,9 @@ struct DockBarView: View {
                 DockIconView(
                     item: item,
                     size: CGFloat(prefs.iconSize),
-                    axis: prefs.axis,
                     switcher: switcher,
                     feedback: feedback,
+                    onHoverName: showHoverName,
                     onRename: { store.rename(id: item.id, to: $0) },
                     onRemove: { store.remove(id: item.id) }
                 )

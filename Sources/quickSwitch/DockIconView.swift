@@ -2,15 +2,15 @@ import SwiftUI
 import AppKit
 import QuickSwitchCore
 
-/// One dock icon: tap to open (with red flash on failure), hover to magnify + show
-/// its name, right-click to remove. Grays out when the target is unavailable, and
-/// flashes an accent ring when a duplicate add targets it.
+/// One dock icon: tap to open (with red flash on failure), hover to magnify and show
+/// its name (via a floating tooltip window), right-click to rename/remove. Grays out
+/// when the target is unavailable, and flashes an accent ring on a duplicate add.
 struct DockIconView: View {
     let item: AppItem
     let size: CGFloat
-    let axis: DockAxis
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
+    let onHoverName: (String?) -> Void
     let onRename: (String) -> Void
     let onRemove: () -> Void
 
@@ -41,22 +41,12 @@ struct DockIconView: View {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
             }
-            .overlay(alignment: .center) {
-                // Horizontal: a custom name bubble above the icon (with room reserved
-                // by DockBarView). Vertical: fall back to the native tooltip (see .help
-                // below) which the system positions and never clips.
-                if isHovering && axis == .horizontal {
-                    nameLabel
-                        .offset(y: -(size / 2) - 16)
-                        .transition(.opacity)
-                }
-            }
-            .help(axis == .vertical ? item.displayName : "")
             .contentShape(Rectangle())
             .onHover { hovering in
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.62)) {
                     isHovering = hovering
                 }
+                onHoverName(hovering ? item.displayName : nil)
             }
             .onTapGesture {
                 switcher.open(item) { result in
@@ -71,6 +61,20 @@ struct DockIconView: View {
                 Button("移除 \(item.displayName)", role: .destructive) { onRemove() }
             }
             .zIndex(isHovering ? 1 : 0)
+    }
+
+    private func triggerFail() {
+        withAnimation(.easeIn(duration: 0.08)) { failFlash = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            withAnimation(.easeOut(duration: 0.3)) { failFlash = false }
+        }
+    }
+
+    private func triggerDuplicate() {
+        withAnimation(.easeIn(duration: 0.08)) { dupFlash = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeOut(duration: 0.3)) { dupFlash = false }
+        }
     }
 
     private func promptRename() {
@@ -88,32 +92,6 @@ struct DockIconView: View {
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         onRename(field.stringValue)
-    }
-
-    private func triggerFail() {
-        withAnimation(.easeIn(duration: 0.08)) { failFlash = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            withAnimation(.easeOut(duration: 0.3)) { failFlash = false }
-        }
-    }
-
-    private func triggerDuplicate() {
-        withAnimation(.easeIn(duration: 0.08)) { dupFlash = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeOut(duration: 0.3)) { dupFlash = false }
-        }
-    }
-
-    private var nameLabel: some View {
-        Text(item.displayName)
-            .font(.system(size: 11, weight: .medium))
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.thinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
-            .shadow(color: .black.opacity(0.20), radius: 3, y: 1)
     }
 
     private var iconImage: Image {
