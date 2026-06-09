@@ -10,11 +10,26 @@ struct DockBarView: View {
     let resolver: AppResolver
     let loginItem: LoginItemControlling
     let onAlwaysOnTopChange: (Bool) -> Void
+    let onResize: (CGSize) -> Void
 
     @State private var dragging: AppItem?
     @State private var launchAtLogin: Bool = false
 
+    /// Transparent space above the bar so the hover name label and the
+    /// magnified icon have room to draw without being clipped by the window.
+    private static let headroom: CGFloat = 30
+
     var body: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: Self.headroom)
+            bar
+        }
+        .fixedSize()
+        .background(sizeReporter)
+        .onPreferenceChange(BarSizeKey.self) { onResize($0) }
+    }
+
+    private var bar: some View {
         HStack(spacing: 8) {
             ForEach(store.items) { item in
                 DockIconView(
@@ -39,13 +54,19 @@ struct DockBarView: View {
         }
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .contentShape(Rectangle())
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .contextMenu { settingsMenu }
         // Fallback target for drops landing on the bar's padding / gaps.
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
             addApps(from: providers, resolver: resolver, store: store)
         }
         .onAppear { launchAtLogin = loginItem.isEnabled }
+    }
+
+    private var sizeReporter: some View {
+        GeometryReader { proxy in
+            Color.clear.preference(key: BarSizeKey.self, value: proxy.size)
+        }
     }
 
     @ViewBuilder private var settingsMenu: some View {
@@ -113,6 +134,11 @@ struct DockBarView: View {
             store.add(item)
         }
     }
+}
+
+private struct BarSizeKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
 }
 
 /// Loads dropped `.app` URLs, resolves each to an AppItem, and adds it on the main actor.

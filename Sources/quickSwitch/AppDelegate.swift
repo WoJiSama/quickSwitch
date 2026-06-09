@@ -20,6 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             loginItem: loginItem,
             onAlwaysOnTopChange: { [weak self] on in
                 self?.panel?.setAlwaysOnTop(on)
+            },
+            onResize: { [weak self] size in
+                self?.panel?.applyContentSize(size)
             }
         )
         panel = DockPanel(rootView: root, alwaysOnTop: prefs.alwaysOnTop)
