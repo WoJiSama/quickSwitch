@@ -25,7 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onResize: { [weak self] size in
                 self?.panel?.applyContentSize(size)
-            }
+            },
+            windowOrigin: { [weak self] in self?.panel?.frame.origin ?? .zero },
+            moveWindow: { [weak self] origin in self?.panel?.setFrameOrigin(origin) }
         )
         panel = DockPanel(
             rootView: root,

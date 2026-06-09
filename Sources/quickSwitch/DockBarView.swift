@@ -12,6 +12,8 @@ struct DockBarView: View {
     let loginItem: LoginItemControlling
     let onAlwaysOnTopChange: (Bool) -> Void
     let onResize: (CGSize) -> Void
+    let windowOrigin: () -> CGPoint
+    let moveWindow: (CGPoint) -> Void
 
     @State private var dragging: AppItem?
     @State private var launchAtLogin: Bool = false
@@ -57,7 +59,7 @@ struct DockBarView: View {
         return ZStack {
             // Background drag/menu layer: dragging empty space moves the window,
             // right-clicking it opens settings. Icons in front handle their own drags.
-            WindowDragHandle()
+            WindowDragHandle(windowOrigin: windowOrigin, moveWindow: moveWindow)
                 .contextMenu { settingsMenu }
             layout {
                 ForEach(store.items) { item in
