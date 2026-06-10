@@ -16,7 +16,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let loginItem = LoginItemManager()
     private let hoverName = HoverNameController()
     private let hotKeys = HotKeyCenter()
-    private lazy var settings = SettingsWindowController(prefs: prefs, loginItem: loginItem)
+    private lazy var settings = SettingsWindowController(
+        prefs: prefs, loginItem: loginItem,
+        onHotKeyRecording: { [weak self] recording in
+            // Pause hotkeys while recording so the current combo can be re-captured
+            // instead of being swallowed by our own registration.
+            guard let self else { return }
+            if recording { self.hotKeys.unregisterAll() } else { self.configureHotKeys() }
+        }
+    )
     private let help = HelpWindowController()
     private lazy var statusItem = StatusItemController(
         onOpenSettings: { [weak self] in self?.settings.show() },

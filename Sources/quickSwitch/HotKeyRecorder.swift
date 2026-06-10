@@ -48,79 +48,58 @@ enum KeyCombo {
     ]
 }
 
-/// A click-to-record hotkey field: click it, press any combo (must include at least
-/// one modifier), and it saves the key code + Carbon modifiers. Esc cancels.
+/// A click-to-record hotkey field. Recording uses a LOCAL event monitor (no
+/// first-responder games, which SwiftUI's focus system fights), and the caller is
+/// told to pause global hotkeys while recording — otherwise pressing the currently
+/// registered combo would be swallowed by our own hotkey instead of being captured.
 struct HotKeyRecorder: View {
     @Binding var keyCode: Int
     @Binding var modifiers: Int
+    /// Called with true when recording starts (pause global hotkeys) and false when
+    /// it ends (re-register them).
+    var onRecordingChanged: (Bool) -> Void = { _ in }
 
     @State private var isRecording = false
+    @State private var monitor: Any?
 
     var body: some View {
         Button {
-            isRecording.toggle()
+            isRecording ? stopRecording() : startRecording()
         } label: {
-            Text(isRecording ? "按下组合键…(⎋ 取消)" : KeyCombo.display(keyCode: keyCode, modifiers: modifiers))
+            Text(isRecording ? "请按下组合键…(⎋ 取消)"
+                             : KeyCombo.display(keyCode: keyCode, modifiers: modifiers))
                 .font(.system(size: 12, weight: .medium))
                 .frame(minWidth: 110)
         }
-        .background(
-            KeyCaptureRepresentable(isRecording: $isRecording) { code, mods in
-                keyCode = code
-                modifiers = mods
-                isRecording = false
-            }
-        )
-    }
-}
-
-/// Invisible AppKit view that grabs first-responder while recording and captures
-/// the next key press (including ⌘ combos, which arrive as key equivalents).
-private struct KeyCaptureRepresentable: NSViewRepresentable {
-    @Binding var isRecording: Bool
-    let onCapture: (Int, Int) -> Void
-
-    func makeNSView(context: Context) -> CaptureView { CaptureView() }
-
-    func updateNSView(_ view: CaptureView, context: Context) {
-        view.onCapture = onCapture
-        view.onCancel = { isRecording = false }
-        DispatchQueue.main.async {
-            if isRecording {
-                view.window?.makeFirstResponder(view)
-            } else if view.window?.firstResponder === view {
-                view.window?.makeFirstResponder(nil)
-            }
-        }
+        .onDisappear { stopRecording() }
     }
 
-    final class CaptureView: NSView {
-        var onCapture: ((Int, Int) -> Void)?
-        var onCancel: (() -> Void)?
-
-        override var acceptsFirstResponder: Bool { true }
-
-        override func keyDown(with event: NSEvent) {
-            handle(event)
-        }
-
-        override func performKeyEquivalent(with event: NSEvent) -> Bool {
-            guard window?.firstResponder === self, event.type == .keyDown else { return false }
-            handle(event)
-            return true
-        }
-
-        private func handle(_ event: NSEvent) {
+    private func startRecording() {
+        isRecording = true
+        onRecordingChanged(true)
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == UInt16(kVK_Escape) {
-                onCancel?()
-                return
+                stopRecording()
+                return nil
             }
             let mods = KeyCombo.carbonModifiers(from: event.modifierFlags)
             guard mods != 0 else {
-                NSSound.beep() // require at least one modifier for a global hotkey
-                return
+                NSSound.beep() // a global hotkey needs at least one modifier
+                return nil
             }
-            onCapture?(Int(event.keyCode), mods)
+            keyCode = Int(event.keyCode)
+            modifiers = mods
+            stopRecording()
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        if isRecording {
+            isRecording = false
+            onRecordingChanged(false)
         }
     }
 }

@@ -9,10 +9,13 @@ final class SettingsWindowController {
     private var window: NSWindow?
     private let prefs: PreferencesStore
     private let loginItem: LoginItemControlling
+    private let onHotKeyRecording: (Bool) -> Void
 
-    init(prefs: PreferencesStore, loginItem: LoginItemControlling) {
+    init(prefs: PreferencesStore, loginItem: LoginItemControlling,
+         onHotKeyRecording: @escaping (Bool) -> Void = { _ in }) {
         self.prefs = prefs
         self.loginItem = loginItem
+        self.onHotKeyRecording = onHotKeyRecording
     }
 
     func show() {
@@ -29,7 +32,9 @@ final class SettingsWindowController {
             window.isReleasedWhenClosed = false
             window.level = .floating
 
-            let hosting = NSHostingView(rootView: SettingsView(prefs: prefs, loginItem: loginItem))
+            let hosting = NSHostingView(rootView: SettingsView(
+                prefs: prefs, loginItem: loginItem, onHotKeyRecording: onHotKeyRecording
+            ))
             hosting.autoresizingMask = [.width, .height]
             window.contentView = hosting
             self.window = window

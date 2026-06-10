@@ -5,6 +5,8 @@ import QuickSwitchCore
 struct SettingsView: View {
     @ObservedObject var prefs: PreferencesStore
     let loginItem: LoginItemControlling
+    /// Pauses (true) / resumes (false) global hotkeys while the recorder is active.
+    var onHotKeyRecording: (Bool) -> Void = { _ in }
 
     @State private var launchAtLogin = false
 
@@ -37,7 +39,9 @@ struct SettingsView: View {
                 HStack {
                     Text("组合键")
                     Spacer()
-                    HotKeyRecorder(keyCode: $prefs.summonKeyCode, modifiers: $prefs.summonModifiers)
+                    HotKeyRecorder(keyCode: $prefs.summonKeyCode,
+                                   modifiers: $prefs.summonModifiers,
+                                   onRecordingChanged: onHotKeyRecording)
                 }
                 .disabled(!prefs.summonHotKeyEnabled)
                 Toggle("⌥1–9 直达前 9 个条目", isOn: $prefs.digitHotKeysEnabled)
