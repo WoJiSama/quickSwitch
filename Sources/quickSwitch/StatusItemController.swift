@@ -29,10 +29,15 @@ final class StatusItemController: NSObject {
     private func show() {
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(
+        // Explicit symbol configuration + template mode: without these the symbol is
+        // rasterized at its tiny default size and upscaled (blurry), and wouldn't
+        // adapt to the menu bar's light/dark appearance.
+        let image = NSImage(
             systemSymbolName: "square.grid.2x2",
             accessibilityDescription: "quickSwitch"
-        )
+        )?.withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
+        image?.isTemplate = true
+        item.button?.image = image
 
         let menu = NSMenu()
         menu.addItem(menuItem(title: "把快捷条移回屏幕中央", action: #selector(recenter)))
