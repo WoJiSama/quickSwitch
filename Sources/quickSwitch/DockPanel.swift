@@ -66,15 +66,13 @@ final class DockPanel: NSPanel {
         orderFrontRegardless()
     }
 
-    /// Global-hotkey toggle: docked → slide out / back in; floating → hide / show.
+    /// Global-hotkey summon. Docked → slide out / back in. Floating → NEVER hides;
+    /// just comes to front so the pulse + digit badges play (hiding the whole bar on
+    /// a "summon" press is disorienting).
     func summonToggle() {
+        orderFrontRegardless()
         if edgeMode != .floating {
-            orderFrontRegardless()
             edgeDock?.toggleReveal()
-        } else if isVisible {
-            orderOut(nil)
-        } else {
-            orderFrontRegardless()
         }
     }
 
