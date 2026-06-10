@@ -6,20 +6,6 @@ public enum DockAxis: String, CaseIterable, Codable, Sendable {
     case horizontal, vertical
 }
 
-/// Preset combos for the global summon hotkey. ⌃Space is deliberately not offered —
-/// it's the system input-source switcher for CJK users.
-public enum SummonHotKey: String, CaseIterable, Codable, Sendable {
-    case optionSpace, commandOptionSpace, controlOptionSpace, commandShiftSpace
-
-    public var displayName: String {
-        switch self {
-        case .optionSpace: return "⌥ Space"
-        case .commandOptionSpace: return "⌘⌥ Space"
-        case .controlOptionSpace: return "⌃⌥ Space"
-        case .commandShiftSpace: return "⌘⇧ Space"
-        }
-    }
-}
 
 /// Global UI preferences. Each property persists to UserDefaults on write.
 public final class PreferencesStore: ObservableObject {
@@ -37,9 +23,11 @@ public final class PreferencesStore: ObservableObject {
     @Published public var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: Keys.showMenuBarIcon) } }
     @Published public var clickFrontmostHides: Bool { didSet { defaults.set(clickFrontmostHides, forKey: Keys.clickFrontmostHides) } }
 
-    // Hotkeys
+    // Hotkeys. The summon combo is a raw virtual key code + Carbon modifier mask,
+    // recorded freely by the user (defaults to ⌥Space).
     @Published public var summonHotKeyEnabled: Bool { didSet { defaults.set(summonHotKeyEnabled, forKey: Keys.summonHotKeyEnabled) } }
-    @Published public var summonHotKey: SummonHotKey { didSet { defaults.set(summonHotKey.rawValue, forKey: Keys.summonHotKey) } }
+    @Published public var summonKeyCode: Int { didSet { defaults.set(summonKeyCode, forKey: Keys.summonKeyCode) } }
+    @Published public var summonModifiers: Int { didSet { defaults.set(summonModifiers, forKey: Keys.summonModifiers) } }
     @Published public var digitHotKeysEnabled: Bool { didSet { defaults.set(digitHotKeysEnabled, forKey: Keys.digitHotKeysEnabled) } }
 
     /// Default values + the ranges the Settings sliders use.
@@ -54,6 +42,8 @@ public final class PreferencesStore: ObservableObject {
         public static let backgroundOpacityRange = 0.2...1.0
         public static let spacingRange = 0.0...20.0
         public static let paddingRange = 4.0...24.0
+        public static let summonKeyCode = 49      // Space
+        public static let summonModifiers = 2048  // ⌥ (Carbon optionKey)
     }
 
     private enum Keys {
@@ -68,7 +58,8 @@ public final class PreferencesStore: ObservableObject {
         static let showMenuBarIcon = "showMenuBarIcon"
         static let clickFrontmostHides = "clickFrontmostHides"
         static let summonHotKeyEnabled = "summonHotKeyEnabled"
-        static let summonHotKey = "summonHotKey"
+        static let summonKeyCode = "summonKeyCode"
+        static let summonModifiers = "summonModifiers"
         static let digitHotKeysEnabled = "digitHotKeysEnabled"
     }
     private let defaults: UserDefaults
@@ -90,7 +81,8 @@ public final class PreferencesStore: ObservableObject {
         self.showMenuBarIcon = (defaults.object(forKey: Keys.showMenuBarIcon) as? Bool) ?? true
         self.clickFrontmostHides = (defaults.object(forKey: Keys.clickFrontmostHides) as? Bool) ?? true
         self.summonHotKeyEnabled = (defaults.object(forKey: Keys.summonHotKeyEnabled) as? Bool) ?? true
-        self.summonHotKey = SummonHotKey(rawValue: defaults.string(forKey: Keys.summonHotKey) ?? "") ?? .optionSpace
+        self.summonKeyCode = (defaults.object(forKey: Keys.summonKeyCode) as? NSNumber)?.intValue ?? Default.summonKeyCode
+        self.summonModifiers = (defaults.object(forKey: Keys.summonModifiers) as? NSNumber)?.intValue ?? Default.summonModifiers
         self.digitHotKeysEnabled = (defaults.object(forKey: Keys.digitHotKeysEnabled) as? Bool) ?? true
     }
 

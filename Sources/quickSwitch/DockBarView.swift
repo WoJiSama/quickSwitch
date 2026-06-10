@@ -21,6 +21,8 @@ struct DockBarView: View {
     @State private var dragging: AppItem?
     @State private var shake: CGFloat = 0
     @State private var rejectFlash = false
+    @State private var summonDip = false
+    @State private var summonFlash = false
 
     /// Drop types we accept for ADDING an entry (apps/files/folders + web links).
     private static let addTypes: [UTType] = [.fileURL, .url]
@@ -44,6 +46,17 @@ struct DockBarView: View {
                     withAnimation(.linear(duration: 0.4)) { shake += 1 }
                 }
             }
+            .onChange(of: dockState.summonPulse) { _ in
+                // "Hotkey received" acknowledgment: accent border flash + a quick
+                // press-down/bounce-back dip (dip skipped under Reduce Motion).
+                summonFlash = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { summonFlash = false }
+                guard !prefersReducedMotion else { return }
+                withAnimation(.easeOut(duration: 0.08)) { summonDip = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.55)) { summonDip = false }
+                }
+            }
     }
 
     private var bar: some View {
@@ -51,12 +64,14 @@ struct DockBarView: View {
             ? AnyLayout(HStackLayout(spacing: CGFloat(prefs.spacing)))
             : AnyLayout(VStackLayout(spacing: CGFloat(prefs.spacing)))
         return layout {
-            ForEach(store.items) { item in
+            ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
                 DockIconView(
                     item: item,
                     size: CGFloat(prefs.iconSize),
                     axis: prefs.axis,
                     hideIfFrontmost: prefs.clickFrontmostHides,
+                    badge: (dockState.showDigitBadges && prefs.digitHotKeysEnabled && index < 9)
+                        ? index + 1 : nil,
                     switcher: switcher,
                     feedback: feedback,
                     onHoverName: showHoverName,
@@ -102,6 +117,13 @@ struct DockBarView: View {
             RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
                 .strokeBorder(Color.red.opacity(rejectFlash ? 0.8 : 0), lineWidth: 2)
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(summonFlash ? 0.9 : 0), lineWidth: 2)
+        }
+        .scaleEffect(summonDip ? 0.94 : 1)
+        .animation(prefersReducedMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
+                   value: dockState.showDigitBadges)
         // High-contrast indicator on the peeking edge when docked & hidden, so the
         // sliver stays visible on light backgrounds — sized to the bar's length.
         .overlay {

@@ -42,19 +42,22 @@ final class PreferencesStoreTests {
     @Test func hotkeyDefaultsAreEnabledOptionSpace() {
         let prefs = PreferencesStore(defaults: defaults)
         #expect(prefs.summonHotKeyEnabled)
-        #expect(prefs.summonHotKey == .optionSpace)
+        #expect(prefs.summonKeyCode == PreferencesStore.Default.summonKeyCode)
+        #expect(prefs.summonModifiers == PreferencesStore.Default.summonModifiers)
         #expect(prefs.digitHotKeysEnabled)
     }
 
     @Test func hotkeyPrefsPersist() {
         let p1 = PreferencesStore(defaults: defaults)
         p1.summonHotKeyEnabled = false
-        p1.summonHotKey = .commandOptionSpace
+        p1.summonKeyCode = 11   // B
+        p1.summonModifiers = 256 | 2048 // ⌘⌥
         p1.digitHotKeysEnabled = false
 
         let p2 = PreferencesStore(defaults: defaults)
         #expect(p2.summonHotKeyEnabled == false)
-        #expect(p2.summonHotKey == .commandOptionSpace)
+        #expect(p2.summonKeyCode == 11)
+        #expect(p2.summonModifiers == 256 | 2048)
         #expect(p2.digitHotKeysEnabled == false)
     }
 

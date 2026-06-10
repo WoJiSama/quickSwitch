@@ -89,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Global hotkeys: (re)register whenever any hotkey preference changes.
         // combineLatest fires immediately with current values, covering launch.
         prefs.$summonHotKeyEnabled
-            .combineLatest(prefs.$summonHotKey, prefs.$digitHotKeysEnabled)
+            .combineLatest(prefs.$summonKeyCode, prefs.$summonModifiers, prefs.$digitHotKeysEnabled)
             .sink { [weak self] _ in self?.configureHotKeys() }
             .store(in: &cancellables)
 
@@ -108,21 +108,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeys.unregisterAll()
 
         if prefs.summonHotKeyEnabled {
-            let combo = prefs.summonHotKey
-            hotKeys.register(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) { [weak self] in
-                self?.panel?.summonToggle()
+            hotKeys.register(keyCode: UInt32(prefs.summonKeyCode),
+                             modifiers: UInt32(prefs.summonModifiers)) { [weak self] in
+                guard let self else { return }
+                self.panel?.summonToggle()
+                self.dockState.summonPulse += 1
+                self.flashDigitBadges()
             }
         }
 
         if prefs.digitHotKeysEnabled {
             for (index, keyCode) in HotKeyCenter.digitKeyCodes.enumerated() {
-                hotKeys.register(keyCode: keyCode, modifiers: SummonHotKey.optionSpace.carbonModifiers) { [weak self] in
+                hotKeys.register(keyCode: keyCode, modifiers: HotKeyCenter.optionModifier) { [weak self] in
                     guard let self, index < self.appList.items.count else { return }
                     self.switcher.open(self.appList.items[index],
                                        hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
                 }
             }
         }
+    }
+
+    /// Show the ⌥1–9 badges for a few seconds after the summon hotkey fires.
+    private var badgeHideWork: DispatchWorkItem?
+    private func flashDigitBadges() {
+        guard prefs.digitHotKeysEnabled else { return }
+        dockState.showDigitBadges = true
+        badgeHideWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.dockState.showDigitBadges = false }
+        badgeHideWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: work)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

@@ -34,10 +34,10 @@ struct SettingsView: View {
 
             Section("快捷键") {
                 Toggle("全局唤出 / 收起", isOn: $prefs.summonHotKeyEnabled)
-                Picker("组合键", selection: $prefs.summonHotKey) {
-                    ForEach(SummonHotKey.allCases, id: \.self) { combo in
-                        Text(combo.displayName).tag(combo)
-                    }
+                HStack {
+                    Text("组合键")
+                    Spacer()
+                    HotKeyRecorder(keyCode: $prefs.summonKeyCode, modifiers: $prefs.summonModifiers)
                 }
                 .disabled(!prefs.summonHotKeyEnabled)
                 Toggle("⌥1–9 直达前 9 个条目", isOn: $prefs.digitHotKeysEnabled)

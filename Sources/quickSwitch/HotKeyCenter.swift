@@ -9,6 +9,9 @@ final class HotKeyCenter {
     /// Virtual key codes for the digit row 1...9 (ANSI layout; not sequential).
     static let digitKeyCodes: [UInt32] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
+    /// Carbon modifier mask for ⌥ (used by the digit hotkeys).
+    static let optionModifier = UInt32(optionKey)
+
     private var handlers: [UInt32: () -> Void] = [:]
     private var refs: [UInt32: EventHotKeyRef] = [:]
     private var eventHandler: EventHandlerRef?
@@ -66,15 +69,3 @@ final class HotKeyCenter {
     }
 }
 
-extension SummonHotKey {
-    var keyCode: UInt32 { UInt32(kVK_Space) }
-
-    var carbonModifiers: UInt32 {
-        switch self {
-        case .optionSpace: return UInt32(optionKey)
-        case .commandOptionSpace: return UInt32(cmdKey | optionKey)
-        case .controlOptionSpace: return UInt32(controlKey | optionKey)
-        case .commandShiftSpace: return UInt32(cmdKey | shiftKey)
-        }
-    }
-}

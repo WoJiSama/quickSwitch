@@ -11,6 +11,8 @@ struct DockIconView: View {
     let size: CGFloat
     let axis: DockAxis
     let hideIfFrontmost: Bool
+    /// ⌥-digit shown under the icon while the summon hotkey's badge window is active.
+    let badge: Int?
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
     let onHoverName: (String?) -> Void
@@ -51,6 +53,19 @@ struct DockIconView: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
+                }
+                .overlay(alignment: .bottom) {
+                    if let badge {
+                        Text("\(badge)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(width: 15, height: 15)
+                            .background(Circle().fill(Color.accentColor))
+                            .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 0.5))
+                            .shadow(color: .black.opacity(0.3), radius: 1.5)
+                            .offset(y: 6)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                 }
                 .contentShape(Rectangle())
         }
