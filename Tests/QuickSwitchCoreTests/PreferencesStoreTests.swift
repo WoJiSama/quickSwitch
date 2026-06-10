@@ -39,6 +39,25 @@ final class PreferencesStoreTests {
         #expect(p2.clickFrontmostHides == false)
     }
 
+    @Test func hotkeyDefaultsAreEnabledOptionSpace() {
+        let prefs = PreferencesStore(defaults: defaults)
+        #expect(prefs.summonHotKeyEnabled)
+        #expect(prefs.summonHotKey == .optionSpace)
+        #expect(prefs.digitHotKeysEnabled)
+    }
+
+    @Test func hotkeyPrefsPersist() {
+        let p1 = PreferencesStore(defaults: defaults)
+        p1.summonHotKeyEnabled = false
+        p1.summonHotKey = .commandOptionSpace
+        p1.digitHotKeysEnabled = false
+
+        let p2 = PreferencesStore(defaults: defaults)
+        #expect(p2.summonHotKeyEnabled == false)
+        #expect(p2.summonHotKey == .commandOptionSpace)
+        #expect(p2.digitHotKeysEnabled == false)
+    }
+
     @Test func stylePersistsAcrossInstances() {
         let p1 = PreferencesStore(defaults: defaults)
         p1.iconSize = 56

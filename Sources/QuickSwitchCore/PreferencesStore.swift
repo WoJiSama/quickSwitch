@@ -6,6 +6,21 @@ public enum DockAxis: String, CaseIterable, Codable, Sendable {
     case horizontal, vertical
 }
 
+/// Preset combos for the global summon hotkey. ⌃Space is deliberately not offered —
+/// it's the system input-source switcher for CJK users.
+public enum SummonHotKey: String, CaseIterable, Codable, Sendable {
+    case optionSpace, commandOptionSpace, controlOptionSpace, commandShiftSpace
+
+    public var displayName: String {
+        switch self {
+        case .optionSpace: return "⌥ Space"
+        case .commandOptionSpace: return "⌘⌥ Space"
+        case .controlOptionSpace: return "⌃⌥ Space"
+        case .commandShiftSpace: return "⌘⇧ Space"
+        }
+    }
+}
+
 /// Global UI preferences. Each property persists to UserDefaults on write.
 public final class PreferencesStore: ObservableObject {
     // Style (continuous — driven by the Settings window sliders)
@@ -21,6 +36,11 @@ public final class PreferencesStore: ObservableObject {
     @Published public var axis: DockAxis { didSet { defaults.set(axis.rawValue, forKey: Keys.axis) } }
     @Published public var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: Keys.showMenuBarIcon) } }
     @Published public var clickFrontmostHides: Bool { didSet { defaults.set(clickFrontmostHides, forKey: Keys.clickFrontmostHides) } }
+
+    // Hotkeys
+    @Published public var summonHotKeyEnabled: Bool { didSet { defaults.set(summonHotKeyEnabled, forKey: Keys.summonHotKeyEnabled) } }
+    @Published public var summonHotKey: SummonHotKey { didSet { defaults.set(summonHotKey.rawValue, forKey: Keys.summonHotKey) } }
+    @Published public var digitHotKeysEnabled: Bool { didSet { defaults.set(digitHotKeysEnabled, forKey: Keys.digitHotKeysEnabled) } }
 
     /// Default values + the ranges the Settings sliders use.
     public enum Default {
@@ -47,6 +67,9 @@ public final class PreferencesStore: ObservableObject {
         static let axis = "axis"
         static let showMenuBarIcon = "showMenuBarIcon"
         static let clickFrontmostHides = "clickFrontmostHides"
+        static let summonHotKeyEnabled = "summonHotKeyEnabled"
+        static let summonHotKey = "summonHotKey"
+        static let digitHotKeysEnabled = "digitHotKeysEnabled"
     }
     private let defaults: UserDefaults
 
@@ -66,6 +89,9 @@ public final class PreferencesStore: ObservableObject {
         self.axis = DockAxis(rawValue: defaults.string(forKey: Keys.axis) ?? "") ?? .horizontal
         self.showMenuBarIcon = (defaults.object(forKey: Keys.showMenuBarIcon) as? Bool) ?? true
         self.clickFrontmostHides = (defaults.object(forKey: Keys.clickFrontmostHides) as? Bool) ?? true
+        self.summonHotKeyEnabled = (defaults.object(forKey: Keys.summonHotKeyEnabled) as? Bool) ?? true
+        self.summonHotKey = SummonHotKey(rawValue: defaults.string(forKey: Keys.summonHotKey) ?? "") ?? .optionSpace
+        self.digitHotKeysEnabled = (defaults.object(forKey: Keys.digitHotKeysEnabled) as? Bool) ?? true
     }
 
     /// Reset the visual style to defaults (leaves behavior toggles like axis/on-top).

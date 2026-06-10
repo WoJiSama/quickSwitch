@@ -83,6 +83,19 @@ final class EdgeDockController {
         onStateChanged?()
     }
 
+    /// Hotkey toggle while docked: slide out (and stay out for a grace period even
+    /// though the cursor isn't nearby), or slide back in.
+    func toggleReveal(grace: TimeInterval = 2.5) {
+        guard mode != .floating else { return }
+        if revealed {
+            revealed = false
+        } else {
+            revealed = true
+            lastInsideAt = now() + grace // keeps it out past the usual hide delay
+        }
+        applyDockedFrame(animated: true)
+    }
+
     private func syncTimer() {
         if mode == .floating {
             stop()

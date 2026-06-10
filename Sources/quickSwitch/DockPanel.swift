@@ -66,6 +66,18 @@ final class DockPanel: NSPanel {
         orderFrontRegardless()
     }
 
+    /// Global-hotkey toggle: docked → slide out / back in; floating → hide / show.
+    func summonToggle() {
+        if edgeMode != .floating {
+            orderFrontRegardless()
+            edgeDock?.toggleReveal()
+        } else if isVisible {
+            orderOut(nil)
+        } else {
+            orderFrontRegardless()
+        }
+    }
+
     /// Keep the window fully visible vertically while allowing horizontal off-screen
     /// travel for edge-docking. Deliberately does NOT call super (which would pull the
     /// window back horizontally and fight the dock-hide).

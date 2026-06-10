@@ -32,6 +32,17 @@ struct SettingsView: View {
                        range: PreferencesStore.Default.paddingRange, suffix: "")
             }
 
+            Section("快捷键") {
+                Toggle("全局唤出 / 收起", isOn: $prefs.summonHotKeyEnabled)
+                Picker("组合键", selection: $prefs.summonHotKey) {
+                    ForEach(SummonHotKey.allCases, id: \.self) { combo in
+                        Text(combo.displayName).tag(combo)
+                    }
+                }
+                .disabled(!prefs.summonHotKeyEnabled)
+                Toggle("⌥1–9 直达前 9 个条目", isOn: $prefs.digitHotKeysEnabled)
+            }
+
             Section("行为") {
                 Toggle("窗口置顶", isOn: $prefs.alwaysOnTop)
                 Toggle("菜单栏图标", isOn: $prefs.showMenuBarIcon)

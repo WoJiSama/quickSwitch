@@ -56,7 +56,8 @@ open build/quickSwitch.app
 
 | Do this | Action |
 |---|---|
-| Switch / open an entry | **Left-click** its icon |
+| Switch / open an entry | **Left-click** its icon, or **⌥1–⌥9** for the first nine |
+| Summon / dismiss the bar | **⌥Space** (configurable; works while edge-hidden) |
 | Reorder | **Drag** an icon over another |
 | Move the whole bar | **Drag any empty space** on the bar |
 | Add an app/file/folder | Drag from **Finder**, or click **`+`** |

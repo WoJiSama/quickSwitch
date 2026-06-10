@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let resolver = AppResolver()
     private let loginItem = LoginItemManager()
     private let hoverName = HoverNameController()
+    private let hotKeys = HotKeyCenter()
     private lazy var settings = SettingsWindowController(prefs: prefs, loginItem: loginItem)
     private let help = HelpWindowController()
     private lazy var statusItem = StatusItemController(
@@ -85,12 +86,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] show in self?.statusItem.setVisible(show) }
             .store(in: &cancellables)
 
+        // Global hotkeys: (re)register whenever any hotkey preference changes.
+        // combineLatest fires immediately with current values, covering launch.
+        prefs.$summonHotKeyEnabled
+            .combineLatest(prefs.$summonHotKey, prefs.$digitHotKeysEnabled)
+            .sink { [weak self] _ in self?.configureHotKeys() }
+            .store(in: &cancellables)
+
         // First launch: open the guide once, so right-click isn't required knowledge.
         let defaults = UserDefaults.standard
         if !defaults.bool(forKey: WinKeys.hasLaunchedBefore) {
             defaults.set(true, forKey: WinKeys.hasLaunchedBefore)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                 self?.help.show()
+            }
+        }
+    }
+
+    /// Register the summon toggle and ⌥1–9 direct-open hotkeys per current prefs.
+    private func configureHotKeys() {
+        hotKeys.unregisterAll()
+
+        if prefs.summonHotKeyEnabled {
+            let combo = prefs.summonHotKey
+            hotKeys.register(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) { [weak self] in
+                self?.panel?.summonToggle()
+            }
+        }
+
+        if prefs.digitHotKeysEnabled {
+            for (index, keyCode) in HotKeyCenter.digitKeyCodes.enumerated() {
+                hotKeys.register(keyCode: keyCode, modifiers: SummonHotKey.optionSpace.carbonModifiers) { [weak self] in
+                    guard let self, index < self.appList.items.count else { return }
+                    self.switcher.open(self.appList.items[index],
+                                       hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
+                }
             }
         }
     }
