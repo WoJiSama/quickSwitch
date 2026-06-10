@@ -12,6 +12,11 @@ public protocol WorkspaceProviding {
     func open(path: String) -> Bool
     /// Open a web URL in the default browser. Returns whether it opened.
     func openWeb(_ urlString: String) -> Bool
+    /// Whether the app is currently the frontmost (active) application.
+    func isFrontmost(bundleID: String) -> Bool
+    /// Hide a running app's windows (like clicking its Dock icon when frontmost,
+    /// with the hide-on-reclick behavior). Returns whether it was hidden.
+    func hideApp(bundleID: String) -> Bool
 }
 
 /// Production implementation backed by NSWorkspace.
@@ -58,6 +63,19 @@ public struct SystemWorkspace: WorkspaceProviding {
         }
         let ok = NSWorkspace.shared.open(url)
         switchLog.debug("openWeb \(urlString, privacy: .private) -> \(ok)")
+        return ok
+    }
+
+    public func isFrontmost(bundleID: String) -> Bool {
+        NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleID
+    }
+
+    public func hideApp(bundleID: String) -> Bool {
+        guard let app = NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleID).first
+        else { return false }
+        let ok = app.hide()
+        switchLog.debug("hideApp \(bundleID, privacy: .public) -> \(ok)")
         return ok
     }
 }

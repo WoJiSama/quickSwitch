@@ -5,12 +5,19 @@ import AppKit
 /// - cursor approaches that edge → slides back out; cursor leaves → hides again after a delay;
 /// - dropped anywhere else → floats freely.
 ///
-/// Uses a lightweight polling timer over `NSEvent.mouseLocation` /
-/// `NSEvent.pressedMouseButtons`, so it needs no Accessibility permission.
+/// While DOCKED it runs a lightweight polling timer over `NSEvent.mouseLocation` /
+/// `NSEvent.pressedMouseButtons` (no Accessibility permission needed). While FLOATING
+/// the timer is stopped entirely — snap evaluation is driven by the window-drag
+/// gesture's end via `evaluateSnapNow()` — so an idle floating bar costs nothing.
 final class EdgeDockController {
     enum Mode: Equatable { case floating, left, right }
 
-    private(set) var mode: Mode = .floating { didSet { onDockStateChanged?(mode, revealed) } }
+    private(set) var mode: Mode = .floating {
+        didSet {
+            onDockStateChanged?(mode, revealed)
+            syncTimer()
+        }
+    }
 
     /// Called when the dock state settles after a drag (snapped to an edge or back to
     /// floating), so the position/edge can be persisted.
@@ -29,20 +36,19 @@ final class EdgeDockController {
     private var lastInsideAt: TimeInterval = 0
 
     // Tunables
-    private let snapThreshold: CGFloat = 28   // drop within this of an edge → dock
-    private let sliver: CGFloat = 6           // visible strip when hidden
-    private let revealProximity: CGFloat = 8  // cursor within this of the edge → reveal
-    private let dragSlop: CGFloat = 6         // movement above this counts as a drag, not a click
+    private let snapThreshold: CGFloat = 28    // drop within this of an edge → dock
+    private let sliver: CGFloat = 6            // visible strip when hidden
+    private let revealProximity: CGFloat = 8   // cursor within this of the edge → reveal
+    private let dragSlop: CGFloat = 6          // movement above this counts as a drag, not a click
     private let hideDelay: TimeInterval = 0.5
     private let tick: TimeInterval = 0.06
+    private let revealDuration: TimeInterval = 0.12
+    private let hideDuration: TimeInterval = 0.18
 
     init(panel: NSPanel) { self.panel = panel }
 
-    func start() {
-        let t = Timer(timeInterval: tick, repeats: true) { [weak self] _ in self?.update() }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
-    }
+    /// Ensure the timer matches the current mode (it only runs while docked).
+    func start() { syncTimer() }
 
     func stop() {
         timer?.invalidate()
@@ -62,8 +68,36 @@ final class EdgeDockController {
         revealed = (savedMode == .floating)
     }
 
+    /// Evaluate snapping after a window drag ended (called from the drag gesture's
+    /// end, so no polling is needed while floating).
+    func evaluateSnapNow() {
+        guard let panel, let screen = panel.screen ?? NSScreen.main else { return }
+        evaluateSnap(screen: screen)
+    }
+
+    /// Un-dock and return to floating (rescue path, e.g. from the menu bar icon).
+    func release() {
+        guard mode != .floating else { return }
+        mode = .floating
+        revealed = true
+        onStateChanged?()
+    }
+
+    private func syncTimer() {
+        if mode == .floating {
+            stop()
+        } else if timer == nil {
+            mouseWasDown = false
+            didDrag = false
+            let t = Timer(timeInterval: tick, repeats: true) { [weak self] _ in self?.update() }
+            RunLoop.main.add(t, forMode: .common)
+            timer = t
+        }
+    }
+
     private func now() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
 
+    /// Runs only while docked.
     private func update() {
         guard let panel, let screen = panel.screen ?? NSScreen.main else { return }
         let down = (NSEvent.pressedMouseButtons & 0x1) != 0
@@ -78,18 +112,17 @@ final class EdgeDockController {
 
         if down {
             if downOnWindow {
-                // User is dragging the bar itself; moving it off the edge un-docks it.
+                // User is dragging the docked bar; moving it un-docks it (the drag
+                // gesture's end will then re-evaluate snapping).
                 let moved = abs(panel.frame.origin.x - downOrigin.x) + abs(panel.frame.origin.y - downOrigin.y)
                 if moved > dragSlop {
                     didDrag = true
-                    if mode != .floating {
-                        mode = .floating
-                        revealed = true
-                    }
+                    mode = .floating // stops this timer via syncTimer
+                    revealed = true
                 }
-            } else if mode != .floating {
-                // An external drag-and-drop is in progress (e.g. from the Dock/Finder).
-                // If it approaches the docked edge, slide out so the user can drop onto the bar.
+            } else {
+                // An external drag-and-drop is in progress (e.g. from Finder).
+                // If it approaches the docked edge, slide out so the user can drop.
                 let near = revealZoneContains(mouse, screen: screen)
                     || panel.frame.insetBy(dx: -2, dy: -2).contains(mouse)
                 if near {
@@ -102,11 +135,8 @@ final class EdgeDockController {
 
         if mouseWasDown {
             mouseWasDown = false
-            if didDrag { evaluateSnap(screen: screen) } // a plain click leaves the mode untouched
             return
         }
-
-        guard mode != .floating else { return }
 
         let inside = revealZoneContains(mouse, screen: screen)
             || panel.frame.insetBy(dx: -2, dy: -2).contains(mouse)
@@ -137,7 +167,9 @@ final class EdgeDockController {
         guard let panel else { return false }
         let vf = screen.visibleFrame
         let f = panel.frame
-        guard (f.minY - 6 ... f.maxY + 6).contains(p.y) else { return false }
+        // Generous vertical band so users don't have to hit the sliver pixel-perfectly.
+        let pad = max(40, f.height * 0.75)
+        guard (f.minY - pad ... f.maxY + pad).contains(p.y) else { return false }
         switch mode {
         case .left: return p.x <= vf.minX + revealProximity
         case .right: return p.x >= vf.maxX - revealProximity
@@ -161,7 +193,7 @@ final class EdgeDockController {
 
         if animated && !prefersReducedMotion {
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.18
+                ctx.duration = revealed ? revealDuration : hideDuration
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().setFrame(f, display: true)
             }

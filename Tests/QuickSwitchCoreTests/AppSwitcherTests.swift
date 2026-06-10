@@ -6,9 +6,12 @@ struct AppSwitcherTests {
         var appReturn = true
         var pathReturn = true
         var webReturn = true
+        var frontmost: String?
+        var hideReturn = true
         private(set) var openedApps: [String] = []
         private(set) var openedPaths: [String] = []
         private(set) var openedWebURLs: [String] = []
+        private(set) var hiddenApps: [String] = []
 
         func openApp(bundleID: String, completion: @escaping (Bool) -> Void) {
             openedApps.append(bundleID); completion(appReturn)
@@ -18,6 +21,10 @@ struct AppSwitcherTests {
         }
         func openWeb(_ urlString: String) -> Bool {
             openedWebURLs.append(urlString); return webReturn
+        }
+        func isFrontmost(bundleID: String) -> Bool { frontmost == bundleID }
+        func hideApp(bundleID: String) -> Bool {
+            hiddenApps.append(bundleID); return hideReturn
         }
     }
 
@@ -89,5 +96,47 @@ struct AppSwitcherTests {
         switcher.open(AppItem(url: "https://x.test", displayName: "x")) { result = $0 }
 
         #expect(result == .failed)
+    }
+
+    @Test func frontmostAppHidesWhenEnabled() {
+        let mock = MockWorkspace()
+        mock.frontmost = "com.foo.Bar"
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(bundleID: "com.foo.Bar", displayName: "Bar"),
+                      hideIfFrontmost: true) { result = $0 }
+
+        #expect(result == .opened)
+        #expect(mock.hiddenApps == ["com.foo.Bar"])
+        #expect(mock.openedApps.isEmpty)
+    }
+
+    @Test func frontmostAppStillOpensWhenHideDisabled() {
+        let mock = MockWorkspace()
+        mock.frontmost = "com.foo.Bar"
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(bundleID: "com.foo.Bar", displayName: "Bar"),
+                      hideIfFrontmost: false) { result = $0 }
+
+        #expect(result == .opened)
+        #expect(mock.openedApps == ["com.foo.Bar"])
+        #expect(mock.hiddenApps.isEmpty)
+    }
+
+    @Test func nonFrontmostAppOpensEvenWithHideEnabled() {
+        let mock = MockWorkspace()
+        mock.frontmost = "com.other.App"
+        let switcher = AppSwitcher(workspace: mock)
+
+        var result: AppSwitcher.SwitchResult?
+        switcher.open(AppItem(bundleID: "com.foo.Bar", displayName: "Bar"),
+                      hideIfFrontmost: true) { result = $0 }
+
+        #expect(result == .opened)
+        #expect(mock.openedApps == ["com.foo.Bar"])
+        #expect(mock.hiddenApps.isEmpty)
     }
 }

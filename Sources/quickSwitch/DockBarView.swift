@@ -20,6 +20,7 @@ struct DockBarView: View {
 
     @State private var dragging: AppItem?
     @State private var shake: CGFloat = 0
+    @State private var rejectFlash = false
 
     /// Drop types we accept for ADDING an entry (apps/files/folders + web links).
     private static let addTypes: [UTType] = [.fileURL, .url]
@@ -34,7 +35,12 @@ struct DockBarView: View {
             .background(sizeReporter)
             .onPreferenceChange(BarSizeKey.self) { onResize($0) }
             .onChange(of: feedback.tick) { _ in
-                if feedback.event == .rejected {
+                guard feedback.event == .rejected else { return }
+                if prefersReducedMotion {
+                    // Non-motion rejection feedback: brief red border instead of a shake.
+                    rejectFlash = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { rejectFlash = false }
+                } else {
                     withAnimation(.linear(duration: 0.4)) { shake += 1 }
                 }
             }
@@ -50,6 +56,7 @@ struct DockBarView: View {
                     item: item,
                     size: CGFloat(prefs.iconSize),
                     axis: prefs.axis,
+                    hideIfFrontmost: prefs.clickFrontmostHides,
                     switcher: switcher,
                     feedback: feedback,
                     onHoverName: showHoverName,
@@ -73,7 +80,10 @@ struct DockBarView: View {
                     )
                 )
             }
-            if prefs.showAddButton { addButton }
+            if store.items.isEmpty { emptyHint }
+            // Always reachable while the bar is empty, regardless of the toggle —
+            // otherwise an empty bar with the + hidden becomes a dead end.
+            if prefs.showAddButton || store.items.isEmpty { addMenu }
         }
         .padding(CGFloat(prefs.padding))
         // The drag/menu layer is the ENTIRE bar background (incl. the padding margin),
@@ -88,23 +98,48 @@ struct DockBarView: View {
                     .contextMenu { settingsMenu }
             }
         }
-        // High-contrast handle on the peeking edge when docked & hidden, so the
-        // sliver stays visible on light backgrounds too.
-        .overlay(alignment: dockState.mode == .left ? .trailing : .leading) {
+        .overlay {
+            RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
+                .strokeBorder(Color.red.opacity(rejectFlash ? 0.8 : 0), lineWidth: 2)
+        }
+        // High-contrast indicator on the peeking edge when docked & hidden, so the
+        // sliver stays visible on light backgrounds — sized to the bar's length.
+        .overlay {
             if dockState.mode != .floating && !dockState.revealed {
-                dockHandle
+                GeometryReader { geo in
+                    edgeIndicator(size: geo.size)
+                }
+                .allowsHitTesting(false)
             }
         }
         .modifier(Shake(animatableData: shake))
     }
 
-    private var dockHandle: some View {
-        Capsule()
-            .fill(Color.accentColor)
-            .frame(width: 5, height: max(22, CGFloat(prefs.iconSize) * 0.55))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.7), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.35), radius: 2)
-            .padding(.horizontal, 1)
+    private func edgeIndicator(size: CGSize) -> some View {
+        let alignment: Alignment = dockState.mode == .left ? .trailing : .leading
+        let handleHeight = min(max(28, size.height * 0.4), max(28, size.height - 12))
+        return ZStack {
+            // Faint full-length strip so the whole hoverable sliver reads on any background.
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(Color.accentColor.opacity(0.4))
+                .frame(width: 3, height: max(20, size.height - 16))
+            // Bright capsule marking the center grab point.
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(width: 5, height: handleHeight)
+                .overlay(Capsule().strokeBorder(.white.opacity(0.7), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.35), radius: 2)
+        }
+        .frame(width: size.width, height: size.height, alignment: alignment)
+        .padding(.horizontal, 1)
+    }
+
+    private var emptyHint: some View {
+        Text("拖入应用 / 文件,或右键打开菜单")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .fixedSize()
+            .padding(.horizontal, 4)
     }
 
     private var sizeReporter: some View {
@@ -115,6 +150,7 @@ struct DockBarView: View {
 
     @discardableResult
     private func addDroppedItems(_ providers: [NSItemProvider]) -> Bool {
+        dragging = nil // an external drop ends any stale internal-drag state
         var accepted = false
         for provider in providers {
             let typeID: String
@@ -136,7 +172,9 @@ struct DockBarView: View {
         return accepted
     }
 
-    @ViewBuilder private var settingsMenu: some View {
+    // MARK: - Menus
+
+    @ViewBuilder private var addMenuItems: some View {
         Menu("添加正在运行的应用") {
             ForEach(runningApps(), id: \.bundleID) { app in
                 Button(app.name) {
@@ -149,10 +187,33 @@ struct DockBarView: View {
         }
         Button("添加文件 / 应用…") { openPicker() }
         Button("添加网址…") { promptAddURL() }
+    }
+
+    @ViewBuilder private var settingsMenu: some View {
+        addMenuItems
         Divider()
         Button("设置…") { onOpenSettings() }
         Button("使用教程") { onOpenHelp() }
         Button("退出 quickSwitch") { NSApp.terminate(nil) }
+    }
+
+    /// The + control: a menu covering every add path (running apps / files / URLs),
+    /// so the most discoverable button exposes the full capability.
+    private var addMenu: some View {
+        Menu {
+            addMenuItems
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: CGFloat(prefs.iconSize) * 0.5, weight: .semibold))
+                .frame(width: CGFloat(prefs.iconSize), height: CGFloat(prefs.iconSize))
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("添加应用 / 文件 / 网址")
+        .accessibilityLabel("添加应用、文件或网址")
     }
 
     /// Currently-running, user-facing apps — a reliable way to add what's in the Dock
@@ -166,18 +227,6 @@ struct DockBarView: View {
                 return (bundleID, app.localizedName ?? bundleID)
             }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private var addButton: some View {
-        Button(action: openPicker) {
-            Image(systemName: "plus")
-                .font(.system(size: CGFloat(prefs.iconSize) * 0.5, weight: .semibold))
-                .frame(width: CGFloat(prefs.iconSize), height: CGFloat(prefs.iconSize))
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .help("添加应用 / 文件 / 文件夹")
-        .accessibilityLabel("添加应用、文件或网址")
     }
 
     private func openPicker() {
@@ -244,7 +293,10 @@ private struct IconDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        guard let dragging, dragging != target,
+        // Only reorder for INTERNAL drags. An external file/url drag must never
+        // reorder — even if a stale `dragging` value survived a cancelled drag.
+        guard !info.hasItemsConforming(to: [UTType.fileURL, UTType.url]),
+              let dragging, dragging != target,
               let from = store.items.firstIndex(of: dragging),
               let to = store.items.firstIndex(of: target)
         else { return }
@@ -273,7 +325,7 @@ private struct IconDropDelegate: DropDelegate {
             }
             return true
         }
-        dragging = nil
+        dragging = nil // internal reorder already applied in dropEntered
         return true
     }
 }

@@ -25,6 +25,18 @@ final class PreferencesStoreTests {
         #expect(prefs.showAddButton)
         #expect(prefs.alwaysOnTop)
         #expect(prefs.axis == .horizontal)
+        #expect(prefs.showMenuBarIcon)
+        #expect(prefs.clickFrontmostHides)
+    }
+
+    @Test func behaviorTogglesPersist() {
+        let p1 = PreferencesStore(defaults: defaults)
+        p1.showMenuBarIcon = false
+        p1.clickFrontmostHides = false
+
+        let p2 = PreferencesStore(defaults: defaults)
+        #expect(p2.showMenuBarIcon == false)
+        #expect(p2.clickFrontmostHides == false)
     }
 
     @Test func stylePersistsAcrossInstances() {

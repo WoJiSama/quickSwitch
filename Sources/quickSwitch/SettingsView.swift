@@ -34,6 +34,8 @@ struct SettingsView: View {
 
             Section("行为") {
                 Toggle("窗口置顶", isOn: $prefs.alwaysOnTop)
+                Toggle("菜单栏图标", isOn: $prefs.showMenuBarIcon)
+                Toggle("点击前台应用时隐藏它", isOn: $prefs.clickFrontmostHides)
                 Toggle("开机自启", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { newValue in
                         try? loginItem.setEnabled(newValue)

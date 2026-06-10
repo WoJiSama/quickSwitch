@@ -13,9 +13,11 @@ enum IconLoader {
         return image
     }
 
-    /// Drop cached icons (e.g. if apps are installed/updated). Currently unused at
-    /// runtime; icons are stable enough that a relaunch refreshes them.
-    static func invalidate() { cache.removeAll() }
+    /// Drop cached icons and availability (e.g. if apps are installed/updated).
+    static func invalidate() {
+        cache.removeAll()
+        availability.removeAll()
+    }
 
     private static func resolve(_ item: AppItem) -> NSImage? {
         switch item.target {
@@ -36,7 +38,22 @@ enum IconLoader {
 
     /// Whether the entry still resolves to something openable (app installed /
     /// file present). Web links are always considered available.
+    /// Cached with a short TTL so SwiftUI re-renders (hover, sliders, feedback ticks)
+    /// don't hit LaunchServices/FileManager on every frame.
     static func isAvailable(for item: AppItem) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let cached = availability[item.id], now - cached.at < availabilityTTL {
+            return cached.value
+        }
+        let value = computeAvailability(item)
+        availability[item.id] = (value, now)
+        return value
+    }
+
+    private static var availability: [String: (value: Bool, at: TimeInterval)] = [:]
+    private static let availabilityTTL: TimeInterval = 8
+
+    private static func computeAvailability(_ item: AppItem) -> Bool {
         switch item.target {
         case .app(let bundleID):
             return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil

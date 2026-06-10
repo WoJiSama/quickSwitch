@@ -54,6 +54,18 @@ final class DockPanel: NSPanel {
         level = on ? .floating : .normal
     }
 
+    /// Evaluate edge snapping after a background drag ended (replaces idle polling).
+    func evaluateSnap() {
+        edgeDock?.evaluateSnapNow()
+    }
+
+    /// Rescue path: un-dock if docked, bring the bar back to the main screen center.
+    func recenter() {
+        edgeDock?.release()
+        centerOnScreen()
+        orderFrontRegardless()
+    }
+
     /// Keep the window fully visible vertically while allowing horizontal off-screen
     /// travel for edge-docking. Deliberately does NOT call super (which would pull the
     /// window back horizontally and fight the dock-hide).

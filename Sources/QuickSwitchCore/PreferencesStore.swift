@@ -19,6 +19,8 @@ public final class PreferencesStore: ObservableObject {
     @Published public var showAddButton: Bool { didSet { defaults.set(showAddButton, forKey: Keys.showAddButton) } }
     @Published public var alwaysOnTop: Bool { didSet { defaults.set(alwaysOnTop, forKey: Keys.alwaysOnTop) } }
     @Published public var axis: DockAxis { didSet { defaults.set(axis.rawValue, forKey: Keys.axis) } }
+    @Published public var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: Keys.showMenuBarIcon) } }
+    @Published public var clickFrontmostHides: Bool { didSet { defaults.set(clickFrontmostHides, forKey: Keys.clickFrontmostHides) } }
 
     /// Default values + the ranges the Settings sliders use.
     public enum Default {
@@ -43,6 +45,8 @@ public final class PreferencesStore: ObservableObject {
         static let showAddButton = "showAddButton"
         static let alwaysOnTop = "alwaysOnTop"
         static let axis = "axis"
+        static let showMenuBarIcon = "showMenuBarIcon"
+        static let clickFrontmostHides = "clickFrontmostHides"
     }
     private let defaults: UserDefaults
 
@@ -60,6 +64,8 @@ public final class PreferencesStore: ObservableObject {
         self.showAddButton = (defaults.object(forKey: Keys.showAddButton) as? Bool) ?? true
         self.alwaysOnTop = (defaults.object(forKey: Keys.alwaysOnTop) as? Bool) ?? true
         self.axis = DockAxis(rawValue: defaults.string(forKey: Keys.axis) ?? "") ?? .horizontal
+        self.showMenuBarIcon = (defaults.object(forKey: Keys.showMenuBarIcon) as? Bool) ?? true
+        self.clickFrontmostHides = (defaults.object(forKey: Keys.clickFrontmostHides) as? Bool) ?? true
     }
 
     /// Reset the visual style to defaults (leaves behavior toggles like axis/on-top).

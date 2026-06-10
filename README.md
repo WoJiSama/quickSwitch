@@ -46,6 +46,12 @@ swift run quickSwitch # run the app from source (Ctrl+C to quit)
 open build/quickSwitch.app
 ```
 
+> **Gatekeeper note:** the bundle is only ad-hoc signed. Opening it on the build
+> machine is fine, but if you distribute it (download/AirDrop), the first launch is
+> blocked. Recipients must use System Settings → Privacy & Security → "Open Anyway",
+> or run `xattr -dr com.apple.quarantine quickSwitch.app`. Proper distribution needs
+> a Developer ID signature + notarization.
+
 ## Usage (quick reference)
 
 | Do this | Action |
@@ -58,8 +64,10 @@ open build/quickSwitch.app
 | Add a web page | **Right-click** the bar ▸ *Add URL…* (paste a link) |
 | Rename | **Right-click** an icon ▸ *Rename…* |
 | Remove | **Right-click** an icon ▸ *Remove* |
+| Hide a frontmost app | **Click its icon again** (A↔B toggling; can be disabled) |
 | Style / layout | **Right-click** the bar ▸ *Settings…* |
 | Edge auto-hide | Drag the bar to the **left/right edge**; hover near it to reveal |
+| Lost the bar? | **Menu bar icon** ▸ *Bring the bar back to center* |
 
 > Dragging app icons out of the **macOS Dock** does not work — macOS doesn't hand off
 > Dock items to other apps. Use *Add running app* or drag from Finder instead.

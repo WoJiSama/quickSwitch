@@ -17,12 +17,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hoverName = HoverNameController()
     private lazy var settings = SettingsWindowController(prefs: prefs, loginItem: loginItem)
     private let help = HelpWindowController()
+    private lazy var statusItem = StatusItemController(
+        onOpenSettings: { [weak self] in self?.settings.show() },
+        onOpenHelp: { [weak self] in self?.help.show() },
+        onRecenter: { [weak self] in
+            self?.panel?.recenter()
+            self?.saveWindowState()
+        }
+    )
 
     private enum WinKeys {
         static let originX = "win.originX"
         static let originY = "win.originY"
         static let hasPosition = "win.hasPosition"
         static let edge = "win.edge"
+        static let hasLaunchedBefore = "hasLaunchedBefore"
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -41,7 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showHoverName: { [weak self] name in
                 if let name { self?.hoverName.show(name) } else { self?.hoverName.hide() }
             },
-            onMoveEnded: { [weak self] in self?.saveWindowState() }
+            onMoveEnded: { [weak self] in
+                self?.panel?.evaluateSnap() // floating mode has no polling; snap on drag end
+                self?.saveWindowState()
+            }
         )
         panel = DockPanel(
             rootView: root,
@@ -67,6 +79,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         prefs.$alwaysOnTop
             .sink { [weak self] on in self?.panel?.setAlwaysOnTop(on) }
             .store(in: &cancellables)
+
+        // Menu-bar fallback entry (toggleable in Settings).
+        prefs.$showMenuBarIcon
+            .sink { [weak self] show in self?.statusItem.setVisible(show) }
+            .store(in: &cancellables)
+
+        // First launch: open the guide once, so right-click isn't required knowledge.
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: WinKeys.hasLaunchedBefore) {
+            defaults.set(true, forKey: WinKeys.hasLaunchedBefore)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.help.show()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

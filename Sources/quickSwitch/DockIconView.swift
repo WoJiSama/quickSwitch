@@ -2,13 +2,15 @@ import SwiftUI
 import AppKit
 import QuickSwitchCore
 
-/// One dock icon: tap to open (with red flash on failure), hover to magnify and show
-/// its name (via a floating tooltip window), right-click to rename/remove. Grays out
-/// when the target is unavailable, and flashes an accent ring on a duplicate add.
+/// One dock icon: click to open (Button-based, so jittery clicks still register;
+/// pressed state scales down; red flash on failure; dims while launching), hover to
+/// magnify and show its name via the floating tooltip, right-click to rename/remove.
+/// Grays out when the target is unavailable; flashes a ring on duplicate add.
 struct DockIconView: View {
     let item: AppItem
     let size: CGFloat
     let axis: DockAxis
+    let hideIfFrontmost: Bool
     let switcher: AppSwitcher
     @ObservedObject var feedback: FeedbackCenter
     let onHoverName: (String?) -> Void
@@ -16,13 +18,12 @@ struct DockIconView: View {
     let onRemove: () -> Void
 
     @State private var isHovering = false
+    @State private var isOpening = false
     @State private var failFlash = false
     @State private var dupFlash = false
 
     private static let hoverScale: CGFloat = 1.18
     private static let hoverLift: CGFloat = 3
-
-    private var isAvailable: Bool { IconLoader.isAvailable(for: item) }
 
     // Lift "out of" the bar: horizontal pops up, vertical stays put (lifting up would
     // overlap the icon above it).
@@ -32,47 +33,56 @@ struct DockIconView: View {
     }
 
     var body: some View {
-        iconImage
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: size, height: size)
-            .grayscale(isAvailable ? 0 : 1)
-            .opacity(isAvailable ? 1 : 0.5)
-            .scaleEffect(isHovering ? Self.hoverScale : 1.0)
-            .offset(y: hoverOffsetY)
-            .shadow(color: .black.opacity(isHovering ? 0.30 : 0), radius: 5, y: 2)
-            .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.red.opacity(failFlash ? 0.35 : 0))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
-            }
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                withMotion(.spring(response: 0.28, dampingFraction: 0.62)) {
-                    isHovering = hovering
+        let available = IconLoader.isAvailable(for: item)
+        Button(action: activate) {
+            iconImage
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .grayscale(available ? 0 : 1)
+                .opacity(available ? (isOpening ? 0.7 : 1) : 0.5)
+                .scaleEffect(isHovering ? Self.hoverScale : 1.0)
+                .offset(y: hoverOffsetY)
+                .shadow(color: .black.opacity(isHovering ? 0.30 : 0), radius: 5, y: 2)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.red.opacity(failFlash ? 0.35 : 0))
                 }
-                onHoverName(hovering ? item.displayName : nil)
-            }
-            .onTapGesture {
-                switcher.open(item) { result in
-                    if result == .failed { triggerFail() }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
                 }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableIconStyle())
+        .onHover { hovering in
+            withMotion(.spring(response: 0.28, dampingFraction: 0.62)) {
+                isHovering = hovering
             }
-            .onChange(of: feedback.tick) { _ in
-                if feedback.event == .duplicate(item.id) { triggerDuplicate() }
+            onHoverName(hovering ? item.displayName : nil)
+        }
+        .onChange(of: feedback.tick) { _ in
+            if feedback.event == .duplicate(item.id) { triggerDuplicate() }
+        }
+        .contextMenu {
+            Button("重命名…") { promptRename() }
+            Button("移除 \(item.displayName)", role: .destructive) { onRemove() }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.displayName + (available ? "" : ",不可用"))
+        .accessibilityAddTraits(.isButton)
+        .zIndex(isHovering ? 1 : 0)
+    }
+
+    private func activate() {
+        guard !isOpening else { return }
+        isOpening = true
+        switcher.open(item, hideIfFrontmost: hideIfFrontmost) { result in
+            DispatchQueue.main.async {
+                isOpening = false
+                if result == .failed { triggerFail() }
             }
-            .contextMenu {
-                Button("重命名…") { promptRename() }
-                Button("移除 \(item.displayName)", role: .destructive) { onRemove() }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(item.displayName + (isAvailable ? "" : ",不可用"))
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { switcher.open(item) { _ in } }
-            .zIndex(isHovering ? 1 : 0)
+        }
     }
 
     private func triggerFail() {
@@ -111,5 +121,15 @@ struct DockIconView: View {
             return Image(nsImage: nsImage)
         }
         return Image(systemName: "questionmark.app.dashed")
+    }
+}
+
+/// Press feedback: scale down while pressed (honors Reduce Motion).
+private struct PressableIconStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .animation(prefersReducedMotion ? nil : .spring(response: 0.2, dampingFraction: 0.7),
+                       value: configuration.isPressed)
     }
 }

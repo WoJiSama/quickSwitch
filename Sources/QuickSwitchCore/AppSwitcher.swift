@@ -14,9 +14,16 @@ public struct AppSwitcher {
         self.workspace = workspace
     }
 
-    public func open(_ item: AppItem, completion: @escaping (SwitchResult) -> Void) {
+    /// Open the entry. For app entries, if `hideIfFrontmost` is set and the app is
+    /// already frontmost, hide it instead (Dock-like A↔B toggling).
+    public func open(_ item: AppItem, hideIfFrontmost: Bool = false,
+                     completion: @escaping (SwitchResult) -> Void) {
         switch item.target {
         case .app(let bundleID):
+            if hideIfFrontmost, workspace.isFrontmost(bundleID: bundleID) {
+                completion(workspace.hideApp(bundleID: bundleID) ? .opened : .failed)
+                return
+            }
             workspace.openApp(bundleID: bundleID) { completion($0 ? .opened : .failed) }
         case .path(let path):
             completion(workspace.open(path: path) ? .opened : .failed)
