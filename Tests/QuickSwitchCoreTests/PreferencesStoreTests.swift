@@ -45,6 +45,13 @@ final class PreferencesStoreTests {
         #expect(prefs.summonKeyCode == PreferencesStore.Default.summonKeyCode)
         #expect(prefs.summonModifiers == PreferencesStore.Default.summonModifiers)
         #expect(prefs.digitHotKeysEnabled)
+        #expect(prefs.digitModifiers == PreferencesStore.Default.digitModifiers)
+    }
+
+    @Test func digitModifiersPersist() {
+        let p1 = PreferencesStore(defaults: defaults)
+        p1.digitModifiers = 4096 // ⌃
+        #expect(PreferencesStore(defaults: defaults).digitModifiers == 4096)
     }
 
     @Test func hotkeyPrefsPersist() {

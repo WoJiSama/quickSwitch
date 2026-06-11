@@ -10,6 +10,16 @@ struct SettingsView: View {
 
     @State private var launchAtLogin = false
 
+    /// Carbon masks offered for the digit direct-open keys. ⌘ alone is deliberately
+    /// omitted — it would steal ⌘1-9 tab switching from browsers/editors system-wide.
+    private static let digitModifierOptions = [
+        2048,        // ⌥
+        4096,        // ⌃
+        4096 | 2048, // ⌃⌥
+        256 | 2048,  // ⌘⌥
+        4096 | 256,  // ⌃⌘
+    ]
+
     var body: some View {
         Form {
             Section("布局") {
@@ -44,7 +54,13 @@ struct SettingsView: View {
                                    onRecordingChanged: onHotKeyRecording)
                 }
                 .disabled(!prefs.summonHotKeyEnabled)
-                Toggle("⌥1–9 直达前 9 个条目", isOn: $prefs.digitHotKeysEnabled)
+                Toggle("数字键直达前 9 个条目", isOn: $prefs.digitHotKeysEnabled)
+                Picker("直达修饰键", selection: $prefs.digitModifiers) {
+                    ForEach(Self.digitModifierOptions, id: \.self) { mask in
+                        Text(KeyCombo.modifierSymbols(mask) + "1–9").tag(mask)
+                    }
+                }
+                .disabled(!prefs.digitHotKeysEnabled)
             }
 
             Section("行为") {

@@ -97,7 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Global hotkeys: (re)register whenever any hotkey preference changes.
         // combineLatest fires immediately with current values, covering launch.
         prefs.$summonHotKeyEnabled
-            .combineLatest(prefs.$summonKeyCode, prefs.$summonModifiers, prefs.$digitHotKeysEnabled)
+            .combineLatest(prefs.$summonKeyCode, prefs.$summonModifiers)
+            .combineLatest(prefs.$digitHotKeysEnabled, prefs.$digitModifiers)
             .sink { [weak self] _ in self?.configureHotKeys() }
             .store(in: &cancellables)
 
@@ -127,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if prefs.digitHotKeysEnabled {
             for (index, keyCode) in HotKeyCenter.digitKeyCodes.enumerated() {
-                hotKeys.register(keyCode: keyCode, modifiers: HotKeyCenter.optionModifier) { [weak self] in
+                hotKeys.register(keyCode: keyCode, modifiers: UInt32(prefs.digitModifiers)) { [weak self] in
                     guard let self, index < self.appList.items.count else { return }
                     self.switcher.open(self.appList.items[index],
                                        hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }

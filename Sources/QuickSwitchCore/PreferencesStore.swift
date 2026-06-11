@@ -29,6 +29,8 @@ public final class PreferencesStore: ObservableObject {
     @Published public var summonKeyCode: Int { didSet { defaults.set(summonKeyCode, forKey: Keys.summonKeyCode) } }
     @Published public var summonModifiers: Int { didSet { defaults.set(summonModifiers, forKey: Keys.summonModifiers) } }
     @Published public var digitHotKeysEnabled: Bool { didSet { defaults.set(digitHotKeysEnabled, forKey: Keys.digitHotKeysEnabled) } }
+    /// Carbon modifier mask used with the 1–9 direct-open keys (default ⌥).
+    @Published public var digitModifiers: Int { didSet { defaults.set(digitModifiers, forKey: Keys.digitModifiers) } }
 
     /// Default values + the ranges the Settings sliders use.
     public enum Default {
@@ -44,6 +46,7 @@ public final class PreferencesStore: ObservableObject {
         public static let paddingRange = 4.0...24.0
         public static let summonKeyCode = 49      // Space
         public static let summonModifiers = 2048  // ⌥ (Carbon optionKey)
+        public static let digitModifiers = 2048   // ⌥ (Carbon optionKey)
     }
 
     private enum Keys {
@@ -61,6 +64,7 @@ public final class PreferencesStore: ObservableObject {
         static let summonKeyCode = "summonKeyCode"
         static let summonModifiers = "summonModifiers"
         static let digitHotKeysEnabled = "digitHotKeysEnabled"
+        static let digitModifiers = "digitModifiers"
     }
     private let defaults: UserDefaults
 
@@ -84,6 +88,7 @@ public final class PreferencesStore: ObservableObject {
         self.summonKeyCode = (defaults.object(forKey: Keys.summonKeyCode) as? NSNumber)?.intValue ?? Default.summonKeyCode
         self.summonModifiers = (defaults.object(forKey: Keys.summonModifiers) as? NSNumber)?.intValue ?? Default.summonModifiers
         self.digitHotKeysEnabled = (defaults.object(forKey: Keys.digitHotKeysEnabled) as? Bool) ?? true
+        self.digitModifiers = (defaults.object(forKey: Keys.digitModifiers) as? NSNumber)?.intValue ?? Default.digitModifiers
     }
 
     /// Reset the visual style to defaults (leaves behavior toggles like axis/on-top).
