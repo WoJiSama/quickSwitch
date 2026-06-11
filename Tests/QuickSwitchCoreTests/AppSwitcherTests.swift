@@ -16,11 +16,11 @@ struct AppSwitcherTests {
         func openApp(bundleID: String, completion: @escaping (Bool) -> Void) {
             openedApps.append(bundleID); completion(appReturn)
         }
-        func open(path: String) -> Bool {
-            openedPaths.append(path); return pathReturn
+        func open(path: String, completion: @escaping (Bool) -> Void) {
+            openedPaths.append(path); completion(pathReturn)
         }
-        func openWeb(_ urlString: String) -> Bool {
-            openedWebURLs.append(urlString); return webReturn
+        func openWeb(_ urlString: String, completion: @escaping (Bool) -> Void) {
+            openedWebURLs.append(urlString); completion(webReturn)
         }
         func isFrontmost(bundleID: String) -> Bool { frontmost == bundleID }
         func hideApp(bundleID: String) -> Bool {

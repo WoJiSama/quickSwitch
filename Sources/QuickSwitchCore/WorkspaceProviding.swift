@@ -8,10 +8,11 @@ public protocol WorkspaceProviding {
     /// Open an app by bundle id the same way clicking its Dock icon does: activate
     /// and raise a running instance, or launch it if not running.
     func openApp(bundleID: String, completion: @escaping (Bool) -> Void)
-    /// Open a file or folder with its default handler. Returns whether it opened.
-    func open(path: String) -> Bool
-    /// Open a web URL in the default browser. Returns whether it opened.
-    func openWeb(_ urlString: String) -> Bool
+    /// Open a file or folder with its default handler (asynchronously, so the main
+    /// thread never blocks on the launch).
+    func open(path: String, completion: @escaping (Bool) -> Void)
+    /// Open a web URL in the default browser (asynchronously).
+    func openWeb(_ urlString: String, completion: @escaping (Bool) -> Void)
     /// Whether the app is currently the frontmost (active) application.
     func isFrontmost(bundleID: String) -> Bool
     /// Hide a running app's windows (like clicking its Dock icon when frontmost,
@@ -50,20 +51,33 @@ public struct SystemWorkspace: WorkspaceProviding {
         }
     }
 
-    public func open(path: String) -> Bool {
-        let ok = NSWorkspace.shared.open(URL(fileURLWithPath: path))
-        switchLog.debug("open path \(path, privacy: .private) -> \(ok)")
-        return ok
+    public func open(path: String, completion: @escaping (Bool) -> Void) {
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        switchLog.debug("open path \(path, privacy: .private)")
+        NSWorkspace.shared.open(URL(fileURLWithPath: path), configuration: config) { _, error in
+            if let error {
+                switchLog.error("open path FAILED: \(error.localizedDescription, privacy: .public)")
+            }
+            completion(error == nil)
+        }
     }
 
-    public func openWeb(_ urlString: String) -> Bool {
+    public func openWeb(_ urlString: String, completion: @escaping (Bool) -> Void) {
         guard let url = URL(string: urlString) else {
             switchLog.error("openWeb invalid url: \(urlString, privacy: .private)")
-            return false
+            completion(false)
+            return
         }
-        let ok = NSWorkspace.shared.open(url)
-        switchLog.debug("openWeb \(urlString, privacy: .private) -> \(ok)")
-        return ok
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        switchLog.debug("openWeb \(urlString, privacy: .private)")
+        NSWorkspace.shared.open(url, configuration: config) { _, error in
+            if let error {
+                switchLog.error("openWeb FAILED: \(error.localizedDescription, privacy: .public)")
+            }
+            completion(error == nil)
+        }
     }
 
     public func isFrontmost(bundleID: String) -> Bool {

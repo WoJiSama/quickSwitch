@@ -26,9 +26,9 @@ public struct AppSwitcher {
             }
             workspace.openApp(bundleID: bundleID) { completion($0 ? .opened : .failed) }
         case .path(let path):
-            completion(workspace.open(path: path) ? .opened : .failed)
+            workspace.open(path: path) { completion($0 ? .opened : .failed) }
         case .url(let urlString):
-            completion(workspace.openWeb(urlString) ? .opened : .failed)
+            workspace.openWeb(urlString) { completion($0 ? .opened : .failed) }
         }
     }
 }
