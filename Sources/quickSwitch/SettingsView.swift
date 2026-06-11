@@ -20,6 +20,18 @@ struct SettingsView: View {
         4096 | 256,  // ⌃⌘
     ]
 
+    /// Whether macOS Mission Control "Switch to Desktop N" shortcuts are enabled —
+    /// they intercept ⌃+digit before any app-registered hotkey can see it.
+    /// (Symbolic hotkey IDs 118...126 are Desktop 1...9.)
+    private static let systemUsesControlDigits: Bool = {
+        guard let hotkeys = UserDefaults(suiteName: "com.apple.symbolichotkeys")?
+            .dictionary(forKey: "AppleSymbolicHotKeys") else { return false }
+        return (118...126).contains { id in
+            guard let entry = hotkeys["\(id)"] as? [String: Any] else { return false }
+            return (entry["enabled"] as? Bool) ?? ((entry["enabled"] as? Int) == 1)
+        }
+    }()
+
     var body: some View {
         Form {
             Section("布局") {
@@ -61,6 +73,13 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(!prefs.digitHotKeysEnabled)
+                if prefs.digitHotKeysEnabled && prefs.digitModifiers == 4096
+                    && Self.systemUsesControlDigits {
+                    Text("⚠️ 系统「切换到桌面 N」快捷键已启用,会抢走 ⌃+数字。请改选 ⌃⌥,或到 系统设置 → 键盘 → 键盘快捷键 → 调度中心 里关闭对应快捷键。")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Section("行为") {
