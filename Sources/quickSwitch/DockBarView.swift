@@ -121,7 +121,15 @@ struct DockBarView: View {
             RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(summonFlash ? 0.9 : 0), lineWidth: 2)
         }
-        .scaleEffect(summonDip ? 0.94 : 1)
+        // Steady "选择中" highlight while the digit modifier is held.
+        .overlay {
+            RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(dockState.digitSelecting ? 0.9 : 0), lineWidth: 2.5)
+        }
+        .shadow(color: Color.accentColor.opacity(dockState.digitSelecting ? 0.5 : 0), radius: 8)
+        .scaleEffect(dockState.digitSelecting ? 1.04 : (summonDip ? 0.94 : 1))
+        .animation(prefersReducedMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
+                   value: dockState.digitSelecting)
         .animation(prefersReducedMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
                    value: dockState.showDigitBadges)
         // High-contrast indicator on the peeking edge when docked & hidden, so the

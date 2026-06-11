@@ -76,6 +76,13 @@ final class DockPanel: NSPanel {
         }
     }
 
+    /// Enter/leave digit-selection mode: surface the bar (front + reveal if docked)
+    /// while the digit modifier is held, so the number badges are visible.
+    func setSelectionMode(_ on: Bool) {
+        if on { orderFrontRegardless() }
+        edgeDock?.setForceReveal(on)
+    }
+
     /// Keep the window fully visible vertically while allowing horizontal off-screen
     /// travel for edge-docking. Deliberately does NOT call super (which would pull the
     /// window back horizontally and fight the dock-hide).

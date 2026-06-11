@@ -99,7 +99,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         prefs.$summonHotKeyEnabled
             .combineLatest(prefs.$summonKeyCode, prefs.$summonModifiers)
             .combineLatest(prefs.$digitHotKeysEnabled, prefs.$digitModifiers)
-            .sink { [weak self] _ in self?.configureHotKeys() }
+            .sink { [weak self] _ in
+                self?.configureHotKeys()
+                self?.updateModifierWatch()
+            }
             .store(in: &cancellables)
 
         // First launch: open the guide once, so right-click isn't required knowledge.
@@ -122,7 +125,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 self.panel?.summonToggle()
                 self.dockState.summonPulse += 1
-                self.flashDigitBadges()
             }
         }
 
@@ -131,26 +133,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 hotKeys.register(keyCode: keyCode, modifiers: UInt32(prefs.digitModifiers)) { [weak self] in
                     guard let self, index < self.appList.items.count else { return }
                     let item = self.appList.items[index]
-                    // Visible acknowledgment: bring the bar forward, flash the chosen
-                    // icon, and pulse — so the user sees the key registered.
-                    self.panel?.summonToggle()
-                    self.dockState.summonPulse += 1
-                    self.feedback.activated(item.id)
+                    self.feedback.activated(item.id) // flash the chosen icon
                     self.switcher.open(item, hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
                 }
             }
         }
     }
 
-    /// Show the ⌥1–9 badges for a few seconds after the summon hotkey fires.
-    private var badgeHideWork: DispatchWorkItem?
-    private func flashDigitBadges() {
-        guard prefs.digitHotKeysEnabled else { return }
-        dockState.showDigitBadges = true
-        badgeHideWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.dockState.showDigitBadges = false }
-        badgeHideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: work)
+    // MARK: - Digit-selection mode (hold the digit modifier → show badges)
+
+    private var modifierTimer: Timer?
+    private var modifierActive = false
+
+    /// Poll `NSEvent.modifierFlags` (permission-free) so that holding the digit
+    /// modifier (e.g. ⌃⌘) lights up the bar with number badges, then press a digit.
+    private func updateModifierWatch() {
+        modifierTimer?.invalidate()
+        modifierTimer = nil
+        guard prefs.digitHotKeysEnabled else {
+            if modifierActive { setSelecting(false) }
+            return
+        }
+        let timer = Timer(timeInterval: 0.09, repeats: true) { [weak self] _ in self?.pollModifiers() }
+        RunLoop.main.add(timer, forMode: .common)
+        modifierTimer = timer
+    }
+
+    private func pollModifiers() {
+        let mask = KeyCombo.carbonModifiers(from: NSEvent.modifierFlags)
+        let active = mask == prefs.digitModifiers && !appList.items.isEmpty
+        guard active != modifierActive else { return }
+        modifierActive = active
+        setSelecting(active)
+    }
+
+    private func setSelecting(_ on: Bool) {
+        dockState.showDigitBadges = on
+        dockState.digitSelecting = on
+        panel?.setSelectionMode(on)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

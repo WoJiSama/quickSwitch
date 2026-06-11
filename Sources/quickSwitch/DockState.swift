@@ -8,6 +8,9 @@ final class DockState: ObservableObject {
     @Published var revealed: Bool = true
     /// Incremented every time the summon hotkey fires (drives the "received" pulse).
     @Published var summonPulse = 0
-    /// While true, icons show their ⌥1–9 digit badges.
+    /// While true, icons show their digit badges.
     @Published var showDigitBadges = false
+    /// True while the digit modifier (e.g. ⌃⌘) is held — the bar shows a "selecting"
+    /// highlight so the user knows to press a number.
+    @Published var digitSelecting = false
 }

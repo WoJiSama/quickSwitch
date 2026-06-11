@@ -29,6 +29,8 @@ final class EdgeDockController {
     private var timer: Timer?
 
     private var revealed = true { didSet { onDockStateChanged?(mode, revealed) } }
+    /// When true (digit-selection mode), the docked bar stays revealed and won't auto-hide.
+    private var forceReveal = false
     private var mouseWasDown = false
     private var downOrigin: NSPoint = .zero
     private var downOnWindow = false
@@ -85,6 +87,18 @@ final class EdgeDockController {
 
     /// Hotkey toggle while docked: slide out (and stay out for a grace period even
     /// though the cursor isn't nearby), or slide back in.
+    /// Digit-selection mode: keep a docked bar slid out (and don't auto-hide) while on.
+    func setForceReveal(_ on: Bool) {
+        forceReveal = on
+        guard mode != .floating else { return }
+        if on {
+            revealed = true
+            applyDockedFrame(animated: true)
+        } else {
+            lastInsideAt = now() // let the normal hide-delay run from now
+        }
+    }
+
     func toggleReveal(grace: TimeInterval = 2.5) {
         guard mode != .floating else { return }
         if revealed {
@@ -156,7 +170,7 @@ final class EdgeDockController {
         if inside {
             lastInsideAt = now()
             if !revealed { revealed = true; applyDockedFrame(animated: true) }
-        } else if revealed, now() - lastInsideAt > hideDelay {
+        } else if revealed, !forceReveal, now() - lastInsideAt > hideDelay {
             revealed = false
             applyDockedFrame(animated: true)
         }
