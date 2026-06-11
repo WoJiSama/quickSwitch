@@ -1,6 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
+import os
 import QuickSwitchCore
+
+private let hotKeyLog = Logger(subsystem: "com.shiqi.quickSwitch", category: "hotkey")
 
 /// Registers global hotkeys via Carbon `RegisterEventHotKey` — system-wide capture
 /// WITHOUT requiring the Accessibility permission, preserving the app's
@@ -25,7 +28,11 @@ final class HotKeyCenter {
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
                                          GetApplicationEventTarget(), 0, &ref)
-        guard status == noErr, let ref else { return }
+        guard status == noErr, let ref else {
+            hotKeyLog.error("register FAILED keyCode=\(keyCode, privacy: .public) modifiers=\(modifiers, privacy: .public) status=\(status, privacy: .public)")
+            return
+        }
+        hotKeyLog.debug("register ok id=\(id, privacy: .public) keyCode=\(keyCode, privacy: .public) modifiers=\(modifiers, privacy: .public)")
         refs[id] = ref
         handlers[id] = handler
     }
@@ -37,6 +44,7 @@ final class HotKeyCenter {
     }
 
     fileprivate func handle(id: UInt32) {
+        hotKeyLog.debug("fired id=\(id, privacy: .public)")
         handlers[id]?()
     }
 

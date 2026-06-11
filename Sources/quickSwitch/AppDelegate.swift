@@ -130,8 +130,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for (index, keyCode) in HotKeyCenter.digitKeyCodes.enumerated() {
                 hotKeys.register(keyCode: keyCode, modifiers: UInt32(prefs.digitModifiers)) { [weak self] in
                     guard let self, index < self.appList.items.count else { return }
-                    self.switcher.open(self.appList.items[index],
-                                       hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
+                    let item = self.appList.items[index]
+                    // Visible acknowledgment: bring the bar forward, flash the chosen
+                    // icon, and pulse — so the user sees the key registered.
+                    self.panel?.summonToggle()
+                    self.dockState.summonPulse += 1
+                    self.feedback.activated(item.id)
+                    self.switcher.open(item, hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
                 }
             }
         }

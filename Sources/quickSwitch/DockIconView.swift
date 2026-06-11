@@ -77,7 +77,9 @@ struct DockIconView: View {
             onHoverName(hovering ? item.displayName : nil)
         }
         .onChange(of: feedback.tick) { _ in
-            if feedback.event == .duplicate(item.id) { triggerDuplicate() }
+            if feedback.event == .duplicate(item.id) || feedback.event == .activated(item.id) {
+                triggerDuplicate()
+            }
         }
         .contextMenu {
             Button("重命名…") { promptRename() }

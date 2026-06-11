@@ -3,13 +3,16 @@ import Combine
 import SwiftUI
 import QuickSwitchCore
 
-/// Transient UI feedback signals for add attempts:
+/// Transient UI feedback signals:
 /// - `rejected`: dropped something that couldn't be turned into an entry → shake.
 /// - `duplicate(id)`: tried to add an entry already present → flash the existing icon.
+/// - `activated(id)`: an entry was opened via a digit hotkey → flash it so the user
+///   sees which one fired.
 final class FeedbackCenter: ObservableObject {
     enum Event: Equatable {
         case rejected
         case duplicate(String)
+        case activated(String)
     }
 
     @Published private(set) var event: Event?
@@ -23,6 +26,11 @@ final class FeedbackCenter: ObservableObject {
 
     func duplicate(_ id: String) {
         event = .duplicate(id)
+        tick += 1
+    }
+
+    func activated(_ id: String) {
+        event = .activated(id)
         tick += 1
     }
 }
