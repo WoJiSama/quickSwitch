@@ -121,14 +121,19 @@ struct DockBarView: View {
             RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(summonFlash ? 0.9 : 0), lineWidth: 2)
         }
-        // Steady "选择中" highlight while the digit modifier is held.
+        // Steady "选择中" highlight while the digit modifier is held — drawn as an
+        // INSET border + fill so it never spills past the window edge (no outer glow
+        // or scale-up, which clipped against the content-sized window).
         .overlay {
             RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(dockState.digitSelecting ? 0.9 : 0), lineWidth: 2.5)
+                .strokeBorder(Color.accentColor.opacity(dockState.digitSelecting ? 0.95 : 0), lineWidth: 3)
+                .background(
+                    RoundedRectangle(cornerRadius: CGFloat(prefs.cornerRadius), style: .continuous)
+                        .fill(Color.accentColor.opacity(dockState.digitSelecting ? 0.12 : 0))
+                )
         }
-        .shadow(color: Color.accentColor.opacity(dockState.digitSelecting ? 0.5 : 0), radius: 8)
-        .scaleEffect(dockState.digitSelecting ? 1.04 : (summonDip ? 0.94 : 1))
-        .animation(prefersReducedMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
+        .scaleEffect(summonDip ? 0.94 : 1)
+        .animation(prefersReducedMotion ? nil : .easeOut(duration: 0.15),
                    value: dockState.digitSelecting)
         .animation(prefersReducedMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
                    value: dockState.showDigitBadges)

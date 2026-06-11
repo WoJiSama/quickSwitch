@@ -54,6 +54,8 @@ struct DockIconView: View {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .strokeBorder(Color.accentColor.opacity(dupFlash ? 0.9 : 0), lineWidth: 3)
                 }
+                // Digit badge sits over the icon's lower edge — fully inside the icon
+                // frame so it never overflows the window (which clips to its content).
                 .overlay(alignment: .bottom) {
                     if let badge {
                         Text("\(badge)")
@@ -61,9 +63,9 @@ struct DockIconView: View {
                             .foregroundStyle(.white)
                             .frame(width: 15, height: 15)
                             .background(Circle().fill(Color.accentColor))
-                            .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 0.5))
-                            .shadow(color: .black.opacity(0.3), radius: 1.5)
-                            .offset(y: 6)
+                            .overlay(Circle().strokeBorder(.white.opacity(0.8), lineWidth: 0.5))
+                            .shadow(color: .black.opacity(0.35), radius: 1.5)
+                            .padding(.bottom, 1)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
