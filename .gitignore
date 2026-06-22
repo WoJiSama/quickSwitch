@@ -12,3 +12,6 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Stray binaries (accidental downloads — e.g. installers dropped into docs/)
+*.exe
