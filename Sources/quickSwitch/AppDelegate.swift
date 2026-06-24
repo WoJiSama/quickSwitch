@@ -32,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onRecenter: { [weak self] in
             self?.panel?.recenter()
             self?.saveWindowState()
-        }
+        },
+        onReset: { [weak self] in self?.resetAndRelaunch() }
     )
 
     private enum WinKeys {
@@ -62,7 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onMoveEnded: { [weak self] in
                 self?.panel?.evaluateSnap() // floating mode has no polling; snap on drag end
                 self?.saveWindowState()
-            }
+            },
+            onReset: { [weak self] in self?.resetAndRelaunch() }
         )
         panel = DockPanel(
             rootView: root,
@@ -115,6 +117,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // Rate-limit the global hotkeys so a burst of presses (holding the modifier and
+    // mashing the number row) can't flood the main thread with open/activation work
+    // and freeze the UI. Shared across all digit handlers, so any mix of digits is
+    // throttled together. (The click path is already guarded by DockIconView.isOpening.)
+    private var digitThrottle = ActionThrottle(minInterval: 0.15)
+    private var summonThrottle = ActionThrottle(minInterval: 0.25)
+
+    private func nowUptime() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+
     /// Register the summon toggle and ⌥1–9 direct-open hotkeys per current prefs.
     private func configureHotKeys() {
         hotKeys.unregisterAll()
@@ -122,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if prefs.summonHotKeyEnabled {
             hotKeys.register(keyCode: UInt32(prefs.summonKeyCode),
                              modifiers: UInt32(prefs.summonModifiers)) { [weak self] in
-                guard let self else { return }
+                guard let self, self.summonThrottle.shouldFire(now: self.nowUptime()) else { return }
                 self.panel?.summonToggle()
                 self.dockState.summonPulse += 1
             }
@@ -131,10 +142,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if prefs.digitHotKeysEnabled {
             for (index, keyCode) in HotKeyCenter.digitKeyCodes.enumerated() {
                 hotKeys.register(keyCode: keyCode, modifiers: UInt32(prefs.digitModifiers)) { [weak self] in
-                    guard let self, index < self.appList.items.count else { return }
+                    guard let self, self.digitThrottle.shouldFire(now: self.nowUptime()) else { return }
+                    guard index < self.appList.items.count else { return }
                     let item = self.appList.items[index]
                     self.feedback.activated(item.id) // flash the chosen icon
-                    self.switcher.open(item, hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
+                    // Defer off the synchronous Carbon callback so the run loop can drain
+                    // between presses; the throttle above caps the rate either way.
+                    DispatchQueue.main.async {
+                        self.switcher.open(item, hideIfFrontmost: self.prefs.clickFrontmostHides) { _ in }
+                    }
                 }
             }
         }
@@ -171,6 +187,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dockState.showDigitBadges = on
         dockState.digitSelecting = on
         panel?.setSelectionMode(on)
+    }
+
+    // MARK: - Reset & relaunch (recovery)
+
+    /// Clear transient state and relaunch the app. A recovery affordance for soft-stuck
+    /// states (a stuck selection highlight, a bar slid off-screen, etc.); surfaced in the
+    /// menu-bar menu and the bar's right-click menu. Note: a genuinely frozen main thread
+    /// can't be rescued from inside the same process — the rate-limited hotkeys are what
+    /// prevent that freeze; this is for recovery and convenience.
+    func resetAndRelaunch() {
+        hotKeys.unregisterAll()
+        setSelecting(false)
+        panel?.recenter()
+        saveWindowState()
+        relaunch()
+    }
+
+    private func relaunch() {
+        let bundleURL = Bundle.main.bundleURL
+        // Only a real .app bundle relaunches cleanly; from `swift run` just re-arm the
+        // hotkeys and stay in place rather than spawning the bare executable.
+        guard bundleURL.pathExtension == "app" else {
+            configureHotKeys()
+            return
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

@@ -8,13 +8,16 @@ final class StatusItemController: NSObject {
     private let onOpenSettings: () -> Void
     private let onOpenHelp: () -> Void
     private let onRecenter: () -> Void
+    private let onReset: () -> Void
 
     init(onOpenSettings: @escaping () -> Void,
          onOpenHelp: @escaping () -> Void,
-         onRecenter: @escaping () -> Void) {
+         onRecenter: @escaping () -> Void,
+         onReset: @escaping () -> Void) {
         self.onOpenSettings = onOpenSettings
         self.onOpenHelp = onOpenHelp
         self.onRecenter = onRecenter
+        self.onReset = onReset
     }
 
     func setVisible(_ visible: Bool) {
@@ -41,6 +44,7 @@ final class StatusItemController: NSObject {
 
         let menu = NSMenu()
         menu.addItem(menuItem(title: "把快捷条移回屏幕中央", action: #selector(recenter)))
+        menu.addItem(menuItem(title: "重置并重启 quickSwitch", action: #selector(reset)))
         menu.addItem(.separator())
         menu.addItem(menuItem(title: "设置…", action: #selector(openSettings)))
         menu.addItem(menuItem(title: "使用教程", action: #selector(openHelp)))
@@ -63,4 +67,5 @@ final class StatusItemController: NSObject {
     @objc private func openSettings() { onOpenSettings() }
     @objc private func openHelp() { onOpenHelp() }
     @objc private func recenter() { onRecenter() }
+    @objc private func reset() { onReset() }
 }

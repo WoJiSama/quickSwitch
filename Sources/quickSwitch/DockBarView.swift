@@ -17,6 +17,7 @@ struct DockBarView: View {
     let onOpenHelp: () -> Void
     let showHoverName: (String?) -> Void
     let onMoveEnded: () -> Void
+    let onReset: () -> Void
 
     @State private var dragging: AppItem?
     @State private var shake: CGFloat = 0
@@ -229,6 +230,8 @@ struct DockBarView: View {
         Divider()
         Button("设置…") { onOpenSettings() }
         Button("使用教程") { onOpenHelp() }
+        Divider()
+        Button("重置并重启 quickSwitch") { onReset() }
         Button("退出 quickSwitch") { NSApp.terminate(nil) }
     }
 
