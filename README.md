@@ -2,9 +2,10 @@
 
 ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-black?logo=apple)
 ![swift](https://img.shields.io/badge/Swift-5.9%2B-orange?logo=swift)
-![tests](https://img.shields.io/badge/tests-43%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-48%20passing-brightgreen)
 ![permissions](https://img.shields.io/badge/permissions-none-blue)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
+[![community: linux.do](https://img.shields.io/badge/community-linux.do-ffb700?logo=discourse&logoColor=white)](https://linux.do)
 
 A lightweight macOS floating **mini-dock**. Pin the apps, files, folders, and web
 pages you jump to most; click one to switch or open it. No Dock icon, no menu-bar
@@ -29,6 +30,7 @@ automation. Switching and opening go through the same system path the Dock uses
 - [Architecture](#architecture)
 - [Privacy](#privacy)
 - [Troubleshooting](#troubleshooting)
+- [Community](#community)
 - [License](#license)
 
 ## Highlights
@@ -152,7 +154,7 @@ Left in the middle of the screen, the bar stays put and never auto-hides.
 ### Develop
 
 ```bash
-swift test            # run the unit-tested core (Swift Testing — 43 tests)
+swift test            # run the unit-tested core (Swift Testing — 48 tests)
 swift build           # compile
 swift run quickSwitch # run from source (Ctrl+C to quit)
 ```
@@ -215,6 +217,13 @@ Click the failing icon and watch the output:
   full-screen (a system-level limitation).
 
 Press `Ctrl+C` to stop.
+
+## Community
+
+quickSwitch is shared and discussed on the **[linux.do](https://linux.do)** community.
+Questions, bug reports, and feature ideas are welcome there — come say hi.
+
+> 🇨🇳 本项目也在 **[linux.do](https://linux.do)** 社区分享与讨论,欢迎在那里交流、反馈问题或提需求。
 
 ## License
 
